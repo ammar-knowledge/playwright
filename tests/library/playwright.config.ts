@@ -53,8 +53,8 @@ const reporters = () => {
   return result;
 };
 
-const os: 'linux' | 'windows' = 'linux'; // use linux
-const runId = new Date().toISOString(); // name the test run
+const os: 'linux' | 'windows' = (process.env.PLAYWRIGHT_SERVICE_OS as 'linux' | 'windows') || 'linux';
+const runId = process.env.PLAYWRIGHT_SERVICE_RUN_ID || new Date().toISOString(); // name the test run
 
 let connectOptions: any;
 if (mode === 'service')
@@ -64,7 +64,7 @@ if (mode === 'service2') {
   connectOptions = {
     wsEndpoint: `${process.env.PLAYWRIGHT_SERVICE_URL}?accessKey=${process.env.PLAYWRIGHT_SERVICE_ACCESS_KEY}&cap=${JSON.stringify({ os, runId })}`,
     timeout: 3 * 60 * 1000,
-    _exposeNetwork: '<loopback>',
+    exposeNetwork: '<loopback>',
   };
 }
 

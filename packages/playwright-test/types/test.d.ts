@@ -3393,6 +3393,22 @@ type ConnectOptions = {
   headers?: { [key: string]: string; };
 
   /**
+   * This option exposes network available on the connecting client to the browser being connected to.
+   * Consists of a list of rules separated by comma.
+   *
+   * Available rules:
+   * - Hostname pattern, for example: `example.com`, `*.org:99`, `x.*.y.com`, `*foo.org`.
+   * - IP literal, for example: `127.0.0.1`, `0.0.0.0:99`, `[::1]`, `[0:0::1]:99`.
+   * - `<loopback>` that matches local loopback interfaces: `localhost`, `*.localhost`, `127.0.0.1`, `[::1]`.
+
+   * Some common examples:
+   * - `"*"` to expose all network.
+   * - `"<loopback>"` to expose localhost network.
+   * - `"*.test.internal-domain,*.staging.internal-domain,<loopback>"` to expose test/staging deployments and localhost.
+   */
+  exposeNetwork?: string;
+
+  /**
    * Timeout in milliseconds for the connection to be established. Optional, defaults to no timeout.
    */
   timeout?: number;
@@ -3575,7 +3591,7 @@ export interface PlaywrightWorkerOptions {
    * });
    * ```
    *
-   * Learn more about [automatic screenshots](https://playwright.dev/docs/test-configuration#automatic-screenshots).
+   * Learn more about [automatic screenshots](https://playwright.dev/docs/test-use-options#recording-options).
    */
   screenshot: ScreenshotMode | { mode: ScreenshotMode } & Pick<PageScreenshotOptions, 'fullPage' | 'omitBackground'>;
   /**
@@ -3601,7 +3617,7 @@ export interface PlaywrightWorkerOptions {
    * });
    * ```
    *
-   * Learn more about [recording trace](https://playwright.dev/docs/test-configuration#record-test-trace).
+   * Learn more about [recording trace](https://playwright.dev/docs/test-use-options#recording-options).
    */
   trace: TraceMode | /** deprecated */ 'retry-with-trace' | { mode: TraceMode, snapshots?: boolean, screenshots?: boolean, sources?: boolean, attachments?: boolean };
   /**
@@ -3629,7 +3645,7 @@ export interface PlaywrightWorkerOptions {
    * });
    * ```
    *
-   * Learn more about [recording video](https://playwright.dev/docs/test-configuration#record-video).
+   * Learn more about [recording video](https://playwright.dev/docs/test-use-options#recording-options).
    */
   video: VideoMode | /** deprecated */ 'retry-with-video' | { mode: VideoMode, size?: ViewportSize };
 }
@@ -3856,7 +3872,7 @@ export interface PlaywrightTestOptions {
    *
    * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
    * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
-   * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
+   * about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
    */
   isMobile: boolean;
   /**
@@ -4024,7 +4040,7 @@ export interface PlaywrightTestOptions {
    * });
    * ```
    *
-   * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+   * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
    * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
    *
    * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined

@@ -3600,7 +3600,7 @@ export interface Page {
 
   /**
    * If specified the network requests that are made in the page will be served from the HAR file. Read more about
-   * [Replaying from HAR](https://playwright.dev/docs/network#replaying-from-har).
+   * [Replaying from HAR](https://playwright.dev/docs/mock#replaying-from-har).
    *
    * Playwright will not serve requests intercepted by Service Worker from the HAR file. See
    * [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when
@@ -8327,7 +8327,7 @@ export interface BrowserContext {
 
   /**
    * If specified the network requests that are made in the context will be served from the HAR file. Read more about
-   * [Replaying from HAR](https://playwright.dev/docs/network#replaying-from-har).
+   * [Replaying from HAR](https://playwright.dev/docs/mock#replaying-from-har).
    *
    * Playwright will not serve requests intercepted by Service Worker from the HAR file. See
    * [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when
@@ -12738,7 +12738,7 @@ export interface BrowserType<Unused = {}> {
     /**
      * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
      * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
-     * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
+     * about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
      */
     isMobile?: boolean;
 
@@ -12959,7 +12959,7 @@ export interface BrowserType<Unused = {}> {
     videosPath?: string;
 
     /**
-     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
      * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
      *
      * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
@@ -14145,7 +14145,7 @@ export interface AndroidDevice {
     /**
      * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
      * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
-     * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
+     * about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
      */
     isMobile?: boolean;
 
@@ -14349,7 +14349,7 @@ export interface AndroidDevice {
     videosPath?: string;
 
     /**
-     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
      * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
      *
      * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
@@ -16020,7 +16020,7 @@ export interface Browser extends EventEmitter {
     /**
      * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
      * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
-     * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
+     * about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
      */
     isMobile?: boolean;
 
@@ -16284,7 +16284,7 @@ export interface Browser extends EventEmitter {
     videosPath?: string;
 
     /**
-     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
      * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
      *
      * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
@@ -19157,7 +19157,7 @@ export interface BrowserContextOptions {
   /**
    * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
    * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
-   * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
+   * about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
    */
   isMobile?: boolean;
 
@@ -19421,7 +19421,7 @@ export interface BrowserContextOptions {
   videosPath?: string;
 
   /**
-   * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+   * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
    * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
    *
    * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
@@ -19640,6 +19640,23 @@ export interface ConnectOverCDPOptions {
 }
 
 export interface ConnectOptions {
+  /**
+   * This option exposes network available on the connecting client to the browser being connected to. Consists of a
+   * list of rules separated by comma.
+   *
+   * Available rules:
+   * 1. Hostname pattern, for example: `example.com`, `*.org:99`, `x.*.y.com`, `*foo.org`.
+   * 1. IP literal, for example: `127.0.0.1`, `0.0.0.0:99`, `[::1]`, `[0:0::1]:99`.
+   * 1. `<loopback>` that matches local loopback interfaces: `localhost`, `*.localhost`, `127.0.0.1`, `[::1]`.
+   *
+   * Some common examples:
+   * 1. `"*"` to expose all network.
+   * 1. `"<loopback>"` to expose localhost network.
+   * 1. `"*.test.internal-domain,*.staging.internal-domain,<loopback>"` to expose test/staging deployments and
+   *    localhost.
+   */
+  exposeNetwork?: string;
+
   /**
    * Additional HTTP headers to be sent with web socket connect request. Optional.
    */
