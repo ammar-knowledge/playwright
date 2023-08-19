@@ -564,15 +564,13 @@ const TraceView: React.FC<{
   return <Workbench
     key='workbench'
     model={model?.model}
-    hideTimelineBars={true}
     hideStackFrames={true}
     showSourcesFirst={true}
     rootDir={rootDir}
     initialSelection={initialSelection}
     onSelectionChanged={onSelectionChanged}
     fallbackLocation={item.testFile}
-    isLive={model?.isLive}
-    drawer='bottom' />;
+    isLive={model?.isLive} />;
 };
 
 let receiver: TeleReporterReceiver | undefined;

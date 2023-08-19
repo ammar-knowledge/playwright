@@ -474,7 +474,12 @@ ContextOptions:
       - active
       - none
       - no-override
-    acceptDownloads: boolean?
+    acceptDownloads:
+      type: enum?
+      literals:
+      - accept
+      - deny
+      - internal-browser-default
     baseURL: string?
     recordVideo:
       type: object?
@@ -1183,6 +1188,11 @@ BrowserContext:
       parameters:
         page: Page
 
+    pageError:
+      parameters:
+        error: SerializedError
+        page: Page
+
     route:
       parameters:
         route: Route
@@ -1629,10 +1639,6 @@ Page:
     frameDetached:
       parameters:
         frame: Frame
-
-    pageError:
-      parameters:
-        error: SerializedError
 
     route:
       parameters:
@@ -3136,7 +3142,12 @@ Electron:
           type: array?
           items: NameValue
         timeout: number?
-        acceptDownloads: boolean?
+        acceptDownloads:
+          type: enum?
+          literals:
+          - accept
+          - deny
+          - internal-browser-default
         bypassCSP: boolean?
         colorScheme:
           type: enum?

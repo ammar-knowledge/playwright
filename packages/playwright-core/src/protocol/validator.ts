@@ -554,7 +554,7 @@ scheme.BrowserTypeLaunchPersistentContextParams = tObject({
   colorScheme: tOptional(tEnum(['dark', 'light', 'no-preference', 'no-override'])),
   reducedMotion: tOptional(tEnum(['reduce', 'no-preference', 'no-override'])),
   forcedColors: tOptional(tEnum(['active', 'none', 'no-override'])),
-  acceptDownloads: tOptional(tBoolean),
+  acceptDownloads: tOptional(tEnum(['accept', 'deny', 'internal-browser-default'])),
   baseURL: tOptional(tString),
   recordVideo: tOptional(tObject({
     dir: tString,
@@ -630,7 +630,7 @@ scheme.BrowserNewContextParams = tObject({
   colorScheme: tOptional(tEnum(['dark', 'light', 'no-preference', 'no-override'])),
   reducedMotion: tOptional(tEnum(['reduce', 'no-preference', 'no-override'])),
   forcedColors: tOptional(tEnum(['active', 'none', 'no-override'])),
-  acceptDownloads: tOptional(tBoolean),
+  acceptDownloads: tOptional(tEnum(['accept', 'deny', 'internal-browser-default'])),
   baseURL: tOptional(tString),
   recordVideo: tOptional(tObject({
     dir: tString,
@@ -691,7 +691,7 @@ scheme.BrowserNewContextForReuseParams = tObject({
   colorScheme: tOptional(tEnum(['dark', 'light', 'no-preference', 'no-override'])),
   reducedMotion: tOptional(tEnum(['reduce', 'no-preference', 'no-override'])),
   forcedColors: tOptional(tEnum(['active', 'none', 'no-override'])),
-  acceptDownloads: tOptional(tBoolean),
+  acceptDownloads: tOptional(tEnum(['accept', 'deny', 'internal-browser-default'])),
   baseURL: tOptional(tString),
   recordVideo: tOptional(tObject({
     dir: tString,
@@ -768,6 +768,10 @@ scheme.BrowserContextDialogEvent = tObject({
   dialog: tChannel(['Dialog']),
 });
 scheme.BrowserContextPageEvent = tObject({
+  page: tChannel(['Page']),
+});
+scheme.BrowserContextPageErrorEvent = tObject({
+  error: tType('SerializedError'),
   page: tChannel(['Page']),
 });
 scheme.BrowserContextRouteEvent = tObject({
@@ -956,9 +960,6 @@ scheme.PageFrameAttachedEvent = tObject({
 });
 scheme.PageFrameDetachedEvent = tObject({
   frame: tChannel(['Frame']),
-});
-scheme.PagePageErrorEvent = tObject({
-  error: tType('SerializedError'),
 });
 scheme.PageRouteEvent = tObject({
   route: tChannel(['Route']),
@@ -2212,7 +2213,7 @@ scheme.ElectronLaunchParams = tObject({
   cwd: tOptional(tString),
   env: tOptional(tArray(tType('NameValue'))),
   timeout: tOptional(tNumber),
-  acceptDownloads: tOptional(tBoolean),
+  acceptDownloads: tOptional(tEnum(['accept', 'deny', 'internal-browser-default'])),
   bypassCSP: tOptional(tBoolean),
   colorScheme: tOptional(tEnum(['dark', 'light', 'no-preference', 'no-override'])),
   extraHTTPHeaders: tOptional(tArray(tType('NameValue'))),
@@ -2442,7 +2443,7 @@ scheme.AndroidDeviceLaunchBrowserParams = tObject({
   colorScheme: tOptional(tEnum(['dark', 'light', 'no-preference', 'no-override'])),
   reducedMotion: tOptional(tEnum(['reduce', 'no-preference', 'no-override'])),
   forcedColors: tOptional(tEnum(['active', 'none', 'no-override'])),
-  acceptDownloads: tOptional(tBoolean),
+  acceptDownloads: tOptional(tEnum(['accept', 'deny', 'internal-browser-default'])),
   baseURL: tOptional(tString),
   recordVideo: tOptional(tObject({
     dir: tString,

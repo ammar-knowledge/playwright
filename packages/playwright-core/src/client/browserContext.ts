@@ -41,6 +41,8 @@ import { rewriteErrorMessage } from '../utils/stackTrace';
 import { HarRouter } from './harRouter';
 import { ConsoleMessage } from './consoleMessage';
 import { Dialog } from './dialog';
+import { PageError } from './pageError';
+import { parseError } from '../protocol/serializers';
 
 export class BrowserContext extends ChannelOwner<channels.BrowserContextChannel> implements api.BrowserContext {
   _pages = new Set<Page>();
@@ -99,6 +101,13 @@ export class BrowserContext extends ChannelOwner<channels.BrowserContextChannel>
       const page = consoleMessage.page();
       if (page)
         page.emit(Events.Page.Console, consoleMessage);
+    });
+    this._channel.on('pageError', ({ error, page }) => {
+      const pageObject = Page.from(page);
+      const parsedError = parseError(error);
+      this.emit(Events.BrowserContext.PageError, new PageError(pageObject, parsedError));
+      if (pageObject)
+        pageObject.emit(Events.Page.PageError, parsedError);
     });
     this._channel.on('dialog', ({ dialog }) => {
       const dialogObject = Dialog.from(dialog);
@@ -451,6 +460,7 @@ export async function prepareBrowserContextParams(options: BrowserContextOptions
     colorScheme: options.colorScheme === null ? 'no-override' : options.colorScheme,
     reducedMotion: options.reducedMotion === null ? 'no-override' : options.reducedMotion,
     forcedColors: options.forcedColors === null ? 'no-override' : options.forcedColors,
+    acceptDownloads: toAcceptDownloadsProtocol(options.acceptDownloads),
   };
   if (!contextParams.recordVideo && options.videosPath) {
     contextParams.recordVideo = {
@@ -459,4 +469,12 @@ export async function prepareBrowserContextParams(options: BrowserContextOptions
     };
   }
   return contextParams;
+}
+
+function toAcceptDownloadsProtocol(acceptDownloads?: boolean) {
+  if (acceptDownloads === undefined)
+    return undefined;
+  if (acceptDownloads === true)
+    return 'accept';
+  return 'deny';
 }

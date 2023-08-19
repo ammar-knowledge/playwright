@@ -128,10 +128,11 @@ test('should contain action info', async ({ showTraceViewer }) => {
   expect(logLines).toContain('  click action done');
 });
 
-test('should render events', async ({ showTraceViewer }) => {
-  const traceViewer = await showTraceViewer([traceFile]);
-  const events = await traceViewer.eventBars();
-  expect(events).toContain('browsercontext_console');
+test('should render network bars', async ({ page, runAndTrace, server }) => {
+  const traceViewer = await runAndTrace(async () => {
+    await page.goto(server.EMPTY_PAGE);
+  });
+  await expect(traceViewer.page.locator('.timeline-bar.network')).toHaveCount(1);
 });
 
 test('should render console', async ({ showTraceViewer, browserName }) => {
@@ -157,10 +158,10 @@ test('should render console', async ({ showTraceViewer, browserName }) => {
   await traceViewer.selectAction('page.evaluate');
 
   const listViews = traceViewer.page.locator('.console-tab').locator('.list-view-entry');
-  await expect(listViews.nth(0)).toHaveClass('list-view-entry highlighted');
-  await expect(listViews.nth(1)).toHaveClass('list-view-entry highlighted warning');
-  await expect(listViews.nth(2)).toHaveClass('list-view-entry highlighted error');
-  await expect(listViews.nth(3)).toHaveClass('list-view-entry highlighted error');
+  await expect(listViews.nth(0)).toHaveClass('list-view-entry');
+  await expect(listViews.nth(1)).toHaveClass('list-view-entry warning');
+  await expect(listViews.nth(2)).toHaveClass('list-view-entry error');
+  await expect(listViews.nth(3)).toHaveClass('list-view-entry error');
   // Firefox can insert layout error here.
   await expect(listViews.last()).toHaveClass('list-view-entry');
 });
@@ -273,7 +274,7 @@ test('should show snapshot URL', async ({ page, runAndTrace, server }) => {
     await page.evaluate('2+2');
   });
   await traceViewer.snapshotFrame('page.evaluate');
-  await expect(traceViewer.page.locator('.window-address-bar')).toHaveText(server.EMPTY_PAGE);
+  await expect(traceViewer.page.locator('.browser-frame-address-bar')).toHaveText(server.EMPTY_PAGE);
 });
 
 test('should popup snapshot', async ({ page, runAndTrace, server }) => {
@@ -861,7 +862,7 @@ test('should update highlight when typing', async ({ page, runAndTrace, server }
     await page.setContent('<button>Submit</button>');
   });
   const snapshot = await traceViewer.snapshotFrame('page.setContent');
-  await traceViewer.page.getByTitle('Pick locator').click();
+  await traceViewer.page.getByText('Locator').click();
   await traceViewer.page.locator('.CodeMirror').click();
   await traceViewer.page.keyboard.type('button');
   await expect(snapshot.locator('x-pw-glass')).toBeVisible();
