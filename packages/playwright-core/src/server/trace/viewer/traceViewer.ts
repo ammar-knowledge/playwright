@@ -28,7 +28,7 @@ import type { BrowserType } from '../../browserType';
 
 export type Transport = {
   sendEvent?: (method: string, params: any) => void;
-  dispatch: (method: string, params: any) => Promise<void>;
+  dispatch: (method: string, params: any) => Promise<any>;
   close?: () => void;
   onclose: () => void;
 };
@@ -81,7 +81,7 @@ async function startTraceViewerServer(traceUrls: string[], options?: OpenTraceVi
         return false;
       }
     }
-    const absolutePath = path.join(__dirname, '..', '..', '..', 'webpack', 'traceViewer', ...relativePath.split('/'));
+    const absolutePath = path.join(__dirname, '..', '..', '..', 'vite', 'traceViewer', ...relativePath.split('/'));
     return server.serveFile(request, response, absolutePath);
   });
 

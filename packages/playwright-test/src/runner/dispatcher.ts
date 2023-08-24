@@ -76,7 +76,6 @@ export class Dispatcher {
         const result = test._appendTestResult();
         result.status = 'skipped';
         this._reporter.onTestBegin(test, result);
-        test.annotations = [...test._staticAnnotations];
         this._reportTestEnd(test, result);
       }
       this._queue.shift();
@@ -464,7 +463,9 @@ export class Dispatcher {
   }
 
   _createWorker(testGroup: TestGroup, parallelIndex: number, loaderData: SerializedConfig) {
-    const worker = new WorkerHost(testGroup, parallelIndex, loaderData, this._extraEnvByProjectId.get(testGroup.projectId) || {});
+    const projectConfig = this._config.projects.find(p => p.id === testGroup.projectId)!;
+    const outputDir = projectConfig.project.outputDir;
+    const worker = new WorkerHost(testGroup, parallelIndex, loaderData, this._extraEnvByProjectId.get(testGroup.projectId) || {}, outputDir);
     const handleOutput = (params: TestOutputPayload) => {
       const chunk = chunkFromParams(params);
       if (worker.didFail()) {

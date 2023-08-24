@@ -49,6 +49,7 @@ export type TracerOptions = {
   name?: string;
   snapshots?: boolean;
   screenshots?: boolean;
+  live?: boolean;
 };
 
 type RecordingState = {
@@ -407,13 +408,14 @@ export class Tracing extends SdkObject implements InstrumentationListener, Snaps
   }
 
   private _onConsoleMessage(message: ConsoleMessage) {
-    const object: trace.ObjectTraceEvent = {
+    const object: trace.ConsoleMessageTraceEvent = {
       type: 'object',
       class: 'ConsoleMessage',
       guid: message.guid,
       initializer: {
         type: message.type(),
         text: message.text(),
+        args: message.args().map(a => ({ preview: a.toString(), value: a.rawValue() })),
         location: message.location(),
       },
     };
@@ -454,8 +456,8 @@ export class Tracing extends SdkObject implements InstrumentationListener, Snaps
 
   private _appendTraceEvent(event: trace.TraceEvent) {
     const visited = visitTraceEvent(event, this._state!.traceSha1s);
-    // Do not flush events, they are too noisy.
-    const flush = event.type !== 'event' && event.type !== 'object';
+    // Do not flush (console) events, they are too noisy, unless we are in ui mode (live).
+    const flush = this._state!.options.live || (event.type !== 'event' && event.type !== 'object');
     this._fs.appendFile(this._state!.traceFile, JSON.stringify(visited) + '\n', flush);
   }
 

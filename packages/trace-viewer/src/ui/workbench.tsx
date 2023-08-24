@@ -32,6 +32,7 @@ import { AttachmentsTab } from './attachmentsTab';
 import type { Boundaries } from '../geometry';
 import { InspectorTab } from './inspectorTab';
 import { ToolbarButton } from '@web/components/toolbarButton';
+import { useSetting } from '@web/uiUtils';
 
 export const Workbench: React.FunctionComponent<{
   model?: MultiTraceModel,
@@ -51,8 +52,13 @@ export const Workbench: React.FunctionComponent<{
   const [highlightedLocator, setHighlightedLocator] = React.useState<string>('');
   const activeAction = model ? highlightedAction || selectedAction : undefined;
   const [selectedTime, setSelectedTime] = React.useState<Boundaries | undefined>();
+  const [sidebarLocation, setSidebarLocation] = useSetting<'bottom' | 'right'>('propertiesSidebarLocation', 'bottom');
 
   const sources = React.useMemo(() => model?.sources || new Map(), [model]);
+
+  React.useEffect(() => {
+    setSelectedTime(undefined);
+  }, [model]);
 
   React.useEffect(() => {
     if (selectedAction && model?.actions.includes(selectedAction))
@@ -64,17 +70,23 @@ export const Workbench: React.FunctionComponent<{
       setSelectedAction(failedAction);
     else if (model?.actions.length)
       setSelectedAction(model.actions[model.actions.length - 1]);
-  }, [model, selectedAction, setSelectedAction, setSelectedPropertiesTab, initialSelection]);
+  }, [model, selectedAction, setSelectedAction, initialSelection]);
 
   const onActionSelected = React.useCallback((action: ActionTraceEventInContext) => {
     setSelectedAction(action);
     onSelectionChanged?.(action);
   }, [setSelectedAction, onSelectionChanged]);
 
+  const selectPropertiesTab = React.useCallback((tab: string) => {
+    setSelectedPropertiesTab(tab);
+    if (tab !== 'inspector')
+      setIsInspecting(false);
+  }, []);
+
   const locatorPicked = React.useCallback((locator: string) => {
     setHighlightedLocator(locator);
-    setSelectedPropertiesTab('inspector');
-  }, []);
+    selectPropertiesTab('inspector');
+  }, [selectPropertiesTab]);
 
   const sdkLanguage = model?.sdkLanguage || 'javascript';
 
@@ -105,7 +117,7 @@ export const Workbench: React.FunctionComponent<{
   const consoleTab: TabbedPaneTabModel = {
     id: 'console',
     title: 'Console',
-    render: () => <ConsoleTab model={model} selectedTime={selectedTime} />
+    render: () => <ConsoleTab model={model} boundaries={boundaries} selectedTime={selectedTime} />
   };
   const networkTab: TabbedPaneTabModel = {
     id: 'network',
@@ -154,8 +166,8 @@ export const Workbench: React.FunctionComponent<{
       selectedTime={selectedTime}
       setSelectedTime={setSelectedTime}
     />
-    <SplitView sidebarSize={400} orientation='horizontal' sidebarIsFirst={true}>
-      <SplitView sidebarSize={250} orientation='vertical'>
+    <SplitView sidebarSize={250} orientation='horizontal' sidebarIsFirst={true}>
+      <SplitView sidebarSize={250} orientation={sidebarLocation === 'bottom' ? 'vertical' : 'horizontal'} settingName='propertiesSidebar'>
         <SnapshotTab
           action={activeAction}
           sdkLanguage={sdkLanguage}
@@ -167,11 +179,22 @@ export const Workbench: React.FunctionComponent<{
         <TabbedPane
           tabs={tabs}
           selectedTab={selectedPropertiesTab}
-          setSelectedTab={setSelectedPropertiesTab}
+          setSelectedTab={selectPropertiesTab}
           leftToolbar={[
-            <ToolbarButton icon='microscope' title='Pick locator' toggled={isInspecting} onClick={() => {
+            <ToolbarButton title='Pick locator' icon='target' toggled={isInspecting} onClick={() => {
+              if (!isInspecting)
+                selectPropertiesTab('inspector');
               setIsInspecting(!isInspecting);
-            }}></ToolbarButton>
+            }} />
+          ]}
+          rightToolbar={[
+            sidebarLocation === 'bottom' ?
+              <ToolbarButton title='Dock to right' icon='layout-sidebar-right-off' onClick={() => {
+                setSidebarLocation('right');
+              }} /> :
+              <ToolbarButton title='Dock to bottom' icon='layout-panel-off' onClick={() => {
+                setSidebarLocation('bottom');
+              }} />
           ]}
         />
       </SplitView>
@@ -187,7 +210,7 @@ export const Workbench: React.FunctionComponent<{
               selectedTime={selectedTime}
               onSelected={onActionSelected}
               onHighlighted={setHighlightedAction}
-              revealConsole={() => setSelectedPropertiesTab('console')}
+              revealConsole={() => selectPropertiesTab('console')}
               isLive={isLive}
             />
           },
