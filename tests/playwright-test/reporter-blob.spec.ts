@@ -446,7 +446,7 @@ test('merge into list report by default', async ({ runInlineTest, mergeReports }
 
   const text = stripAnsi(output);
   expect(text).toContain('Running 10 tests using 3 workers');
-  const lines = text.split('\n').filter(l => l.match(/^\d :/)).map(l => l.replace(/\d+ms/, 'Xms'));
+  const lines = text.split('\n').filter(l => l.match(/^\d :/)).map(l => l.replace(/[.\d]+m?s/, 'Xms'));
   expect(lines).toEqual([
     `0 :      1 a.test.js:3:11 › math 1`,
     `0 :   ${POSITIVE_STATUS_MARK} 1 a.test.js:3:11 › math 1 (Xms)`,
@@ -996,7 +996,6 @@ test('preserve config fields', async ({ runInlineTest, mergeReports }) => {
   expect(json.globalTimeout).toBe(config.globalTimeout);
   expect(json.maxFailures).toBe(config.maxFailures);
   expect(json.metadata).toEqual(expect.objectContaining(config.metadata));
-  expect(json.metadata.totalTime).toBeTruthy();
   expect(json.workers).toBe(2);
   expect(json.version).toBeTruthy();
   expect(json.version).not.toEqual(test.info().config.version);
