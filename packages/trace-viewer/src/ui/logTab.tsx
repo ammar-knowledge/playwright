@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-import { ansi2html } from '@web/ansi2html';
+import type { ActionTraceEvent } from '@trace/trace';
 import * as React from 'react';
-import './errorMessage.css';
+import { ListView } from '@web/components/listView';
+import { PlaceholderPanel } from './placeholderPanel';
 
-export const ErrorMessage: React.FC<{
-  error: string;
-}> = ({ error }) => {
-  const html = React.useMemo(() => ansi2html(error), [error]);
-  return <div className='error-message' dangerouslySetInnerHTML={{ __html: html || '' }}></div>;
+const LogList = ListView<string>;
+
+export const LogTab: React.FunctionComponent<{
+  action: ActionTraceEvent | undefined,
+}> = ({ action }) => {
+  if (!action?.log.length)
+    return <PlaceholderPanel text='No log entries' />;
+  return <LogList
+    dataTestId='log-list'
+    items={action?.log || []}
+    render={logLine => logLine}
+  />;
 };

@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-import { ansi2html } from '@web/ansi2html';
 import * as React from 'react';
-import './errorMessage.css';
 
-export const ErrorMessage: React.FC<{
-  error: string;
-}> = ({ error }) => {
-  const html = React.useMemo(() => ansi2html(error), [error]);
-  return <div className='error-message' dangerouslySetInnerHTML={{ __html: html || '' }}></div>;
+export const PlaceholderPanel: React.FunctionComponent<{
+  text: string,
+}> = ({ text }) => {
+  return <div className='fill' style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 24,
+    fontWeight: 'bold',
+    opacity: 0.5,
+  }}>{text}</div>;
 };

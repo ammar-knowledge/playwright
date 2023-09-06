@@ -122,7 +122,8 @@ test('should open simple trace viewer', async ({ showTraceViewer }) => {
 test('should contain action info', async ({ showTraceViewer }) => {
   const traceViewer = await showTraceViewer([traceFile]);
   await traceViewer.selectAction('locator.click');
-  const logLines = await traceViewer.callLines.allTextContents();
+  await traceViewer.page.getByText('Log', { exact: true }).click();
+  const logLines = await traceViewer.logLines.allTextContents();
   expect(logLines.length).toBeGreaterThan(10);
   expect(logLines).toContain('attempting click action');
   expect(logLines).toContain('  click action done');
@@ -551,6 +552,28 @@ test('should handle src=blob', async ({ page, server, runAndTrace, browserName }
   expect(size).toBe(10);
 });
 
+test('should preserve currentSrc', async ({ browser, server, showTraceViewer }) => {
+  const traceFile = test.info().outputPath('trace.zip');
+  const page = await browser.newPage({ deviceScaleFactor: 3 });
+  await page.context().tracing.start({ snapshots: true, screenshots: true, sources: true });
+  await page.setViewportSize({ width: 300, height: 300 });
+  await page.goto(server.EMPTY_PAGE);
+  await page.setContent(`
+    <picture>
+      <source srcset="digits/1.png 1x, digits/2.png 2x, digits/3.png 3x">
+      <img id=target1 src="digits/0.png">
+    </picture>
+    <img id=target2 srcset="digits/4.png 1x, digits/5.png 2x, digits/6.png 3x">
+  `);
+  await page.context().tracing.stop({ path: traceFile });
+  await page.close();
+
+  const traceViewer = await showTraceViewer([traceFile]);
+  const frame = await traceViewer.snapshotFrame('page.setContent');
+  await expect(frame.locator('#target1')).toHaveAttribute('src', server.PREFIX + '/digits/3.png');
+  await expect(frame.locator('#target2')).toHaveAttribute('src', server.PREFIX + '/digits/6.png');
+});
+
 test('should register custom elements', async ({ page, server, runAndTrace }) => {
   const traceViewer = await runAndTrace(async () => {
     await page.goto(server.EMPTY_PAGE);
@@ -628,6 +651,20 @@ test('should highlight target elements', async ({ page, runAndTrace, browserName
 
   const frameExpect2 = await traceViewer.snapshotFrame('expect.toHaveText', 1);
   await expect.poll(() => highlightedDivs(frameExpect2)).toEqual(['multi', 'multi']);
+});
+
+test('should highlight target element in shadow dom', async ({ page, server, runAndTrace }) => {
+  const traceViewer = await runAndTrace(async () => {
+    await page.goto(server.PREFIX + '/shadow.html');
+    await page.locator('button').click();
+    await expect(page.locator('h1')).toHaveText('Hellow Shadow DOM v1');
+  });
+
+  const framePageClick = await traceViewer.snapshotFrame('locator.click');
+  await expect(framePageClick.locator('button')).toHaveCSS('background-color', 'rgba(111, 168, 220, 0.498)');
+
+  const frameExpect = await traceViewer.snapshotFrame('expect.toHaveText');
+  await expect(frameExpect.locator('h1')).toHaveCSS('background-color', 'rgba(111, 168, 220, 0.498)');
 });
 
 test('should show action source', async ({ showTraceViewer }) => {

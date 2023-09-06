@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { APIRequestContext, BrowserContext, Browser, BrowserContextOptions, LaunchOptions, Page, Tracing, Video } from 'playwright-core';
 import * as playwrightLibrary from 'playwright-core';
-import { createGuid, debugMode, addInternalStackPrefix, mergeTraceFiles, isString, asLocator, jsonStringifyForceASCII } from 'playwright-core/lib/utils';
+import { createGuid, debugMode, addInternalStackPrefix, isString, asLocator, jsonStringifyForceASCII } from 'playwright-core/lib/utils';
 import type { Fixtures, PlaywrightTestArgs, PlaywrightTestOptions, PlaywrightWorkerArgs, PlaywrightWorkerOptions, ScreenshotMode, TestInfo, TestType, TraceMode, VideoMode } from '../types/test';
 import type { TestInfoImpl } from './worker/testInfo';
 import { rootTestType } from './common/testType';
@@ -26,6 +26,7 @@ import type { ContextReuseMode } from './common/config';
 import type { ClientInstrumentation, ClientInstrumentationListener } from '../../playwright-core/src/client/clientInstrumentation';
 import type { ParsedStackTrace } from '../../playwright-core/src/utils/stackTrace';
 import { currentTestInfo } from './common/globals';
+import { mergeTraceFiles } from './worker/testTracing';
 export { expect } from './matchers/expect';
 export { store as _store } from './store';
 export const _baseTest: TestType<{}, {}> = rootTestType.test;
@@ -67,11 +68,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
   channel: [({ launchOptions }, use) => use(launchOptions.channel), { scope: 'worker', option: true }],
   launchOptions: [{}, { scope: 'worker', option: true }],
   connectOptions: [async ({}, use) => {
-    // Usually, when connect options are specified (e.g, in the config or in the environment),
-    // all launch() calls are turned into connect() calls.
-    // However, when running in "reuse browser" mode and connecting to the reusable server,
-    // only the default "browser" fixture should turn into reused browser.
-    await use(process.env.PW_TEST_REUSE_CONTEXT ? undefined : connectOptionsFromEnv());
+    await use(connectOptionsFromEnv());
   }, { scope: 'worker', option: true }],
   screenshot: ['off', { scope: 'worker', option: true }],
   video: ['off', { scope: 'worker', option: true }],
@@ -81,7 +78,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
     await use(process.env.TEST_ARTIFACTS_DIR!);
   }, { scope: 'worker', _title: 'playwright configuration' } as any],
 
-  _browserOptions: [async ({ playwright, headless, channel, launchOptions, connectOptions, _artifactsDir }, use) => {
+  _browserOptions: [async ({ playwright, headless, channel, launchOptions, _artifactsDir }, use) => {
     const options: LaunchOptions = {
       handleSIGINT: false,
       ...launchOptions,
@@ -92,28 +89,23 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
       options.channel = channel;
     options.tracesDir = path.join(_artifactsDir, 'traces');
 
-    for (const browserType of [playwright.chromium, playwright.firefox, playwright.webkit]) {
+    for (const browserType of [playwright.chromium, playwright.firefox, playwright.webkit])
       (browserType as any)._defaultLaunchOptions = options;
-      (browserType as any)._defaultConnectOptions = connectOptions;
-    }
     await use(options);
-    for (const browserType of [playwright.chromium, playwright.firefox, playwright.webkit]) {
+    for (const browserType of [playwright.chromium, playwright.firefox, playwright.webkit])
       (browserType as any)._defaultLaunchOptions = undefined;
-      (browserType as any)._defaultConnectOptions = undefined;
-    }
   }, { scope: 'worker', auto: true }],
 
-  browser: [async ({ playwright, browserName, _browserOptions }, use, testInfo) => {
+  browser: [async ({ playwright, browserName, _browserOptions, connectOptions }, use, testInfo) => {
     if (!['chromium', 'firefox', 'webkit'].includes(browserName))
       throw new Error(`Unexpected browserName "${browserName}", must be one of "chromium", "firefox" or "webkit"`);
 
-    // Support for "reuse browser" mode.
-    const connectOptions = connectOptionsFromEnv();
-    if (connectOptions && process.env.PW_TEST_REUSE_CONTEXT) {
+    if (connectOptions) {
       const browser = await playwright[browserName].connect({
         ...connectOptions,
+        exposeNetwork: connectOptions.exposeNetwork ?? (connectOptions as any)._exposeNetwork,
         headers: {
-          'x-playwright-reuse-context': '1',
+          ...(process.env.PW_TEST_REUSE_CONTEXT ? { 'x-playwright-reuse-context': '1' } : {}),
           // HTTP headers are ASCII only (not UTF-8).
           'x-playwright-launch-options': jsonStringifyForceASCII(_browserOptions),
           ...connectOptions.headers,
