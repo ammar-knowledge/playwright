@@ -578,8 +578,6 @@ class TypesGenerator {
         'GenericAssertions.objectContaining',
         'GenericAssertions.stringContaining',
         'GenericAssertions.stringMatching',
-        'SnapshotAssertions.toMatchSnapshot#3',
-        'SnapshotAssertions.toMatchSnapshot#4',
       ]),
       overridesToDocsClassMapping: new Map([
         ['TestType', 'Test'],
@@ -602,6 +600,7 @@ class TypesGenerator {
         'PlaywrightWorkerOptions.defaultBrowserType',
         'PlaywrightWorkerArgs.playwright',
         'Matchers',
+        'ExpectMatcherUtils',
       ]),
       doNotExportClassNames: new Set([...assertionClasses, 'TestProject']),
       includeExperimental,

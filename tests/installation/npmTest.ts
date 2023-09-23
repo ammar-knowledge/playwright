@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-// eslint-disable-next-line spaced-comment
-/// <reference path="./expect.d.ts" />
-
-import { test as _test, expect as _expect } from '@playwright/test';
+import { _baseTest as _test, expect as _expect } from '@playwright/test';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -28,31 +25,11 @@ import type { CommonFixtures, CommonWorkerFixtures } from '../config/commonFixtu
 import { commonFixtures } from '../config/commonFixtures';
 import { removeFolders } from '../../packages/playwright-core/lib/utils/fileUtils';
 
-
 export const TMP_WORKSPACES = path.join(os.platform() === 'darwin' ? '/tmp' : os.tmpdir(), 'pwt', 'workspaces');
 
 const debug = debugLogger('itest');
 
-/**
- * A minimal NPM Registry Server that can serve local packages, or proxy to the upstream registry.
- * This is useful in test installation behavior of packages that aren't yet published. It's particularly helpful
- * when your installation requires transitive dependencies that are also not yet published.
- *
- * See https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md for information on the offical APIs.
- */
-
-_expect.extend({
-  async toExistOnFS(received: any) {
-    if (typeof received !== 'string')
-      throw new Error(`Expected argument to be a string.`);
-    try {
-      await fs.promises.access(received);
-      return { pass: true };
-    } catch (e) {
-      return { pass: false, message: () => 'file does not exist' };
-    }
-  },
-
+const expect = _expect.extend({
   toHaveLoggedSoftwareDownload(received: any, browsers: ('chromium' | 'firefox' | 'webkit' | 'ffmpeg')[]) {
     if (typeof received !== 'string')
       throw new Error(`Expected argument to be a string.`);
@@ -62,8 +39,12 @@ _expect.extend({
       downloaded.add(browser.toLowerCase());
 
     const expected = browsers;
-    if (expected.length === downloaded.size && expected.every(browser => downloaded.has(browser)))
-      return { pass: true };
+    if (expected.length === downloaded.size && expected.every(browser => downloaded.has(browser))) {
+      return {
+        pass: true,
+        message: () => 'Expected not to download browsers, but did.'
+      };
+    }
     return {
       pass: false,
       message: () => [
@@ -75,27 +56,29 @@ _expect.extend({
   }
 });
 
-const expect = _expect;
+type ExecOptions = { cwd?: string, env?: Record<string, string>, message?: string, expectToExitWithError?: boolean };
+type ArgsOrOptions = [] | [...string[]] | [...string[], ExecOptions] | [ExecOptions];
 
-export type ExecOptions = { cwd?: string, env?: Record<string, string>, message?: string, expectToExitWithError?: boolean };
-export type ArgsOrOptions = [] | [...string[]] | [...string[], ExecOptions] | [ExecOptions];
+type NPMTestOptions = {
+  useRealCDN: boolean;
+};
 
-export type NPMTestFixtures = {
-  _auto: void,
-  _browsersPath: string
-  tmpWorkspace: string,
-  nodeMajorVersion: number,
+type NPMTestFixtures = {
+  _auto: void;
+  _browsersPath: string;
+  tmpWorkspace: string;
   installedSoftwareOnDisk: (registryPath?: string) => Promise<string[]>;
-  writeConfig: (allowGlobal: boolean) => Promise<void>,
-  writeFiles: (nameToContents: Record<string, string>) => Promise<void>,
-  exec: (cmd: string, ...argsAndOrOptions: ArgsOrOptions) => Promise<string>
-  tsc: (...argsAndOrOptions: ArgsOrOptions) => Promise<string>,
-  registry: Registry,
+  writeConfig: (allowGlobal: boolean) => Promise<void>;
+  writeFiles: (nameToContents: Record<string, string>) => Promise<void>;
+  exec: (cmd: string, ...argsAndOrOptions: ArgsOrOptions) => Promise<string>;
+  tsc: (...argsAndOrOptions: ArgsOrOptions) => Promise<string>;
+  registry: Registry;
 };
 
 export const test = _test
     .extend<CommonFixtures, CommonWorkerFixtures>(commonFixtures)
-    .extend<NPMTestFixtures>({
+    .extend<NPMTestFixtures & NPMTestOptions>({
+      useRealCDN: [false, { option: true }],
       _browsersPath: async ({ tmpWorkspace }, use) => use(path.join(tmpWorkspace, 'browsers')),
       _auto: [async ({ tmpWorkspace, exec, _browsersPath, writeConfig }, use) => {
         await exec('npm init -y');
@@ -119,9 +102,6 @@ export const test = _test
       }, {
         auto: true,
       }],
-      nodeMajorVersion: async ({}, use) => {
-        await use(+process.versions.node.split('.')[0]);
-      },
       writeFiles: async ({ tmpWorkspace }, use) => {
         await use(async (nameToContents: Record<string, string>) => {
           for (const [name, contents] of Object.entries(nameToContents))
@@ -164,7 +144,7 @@ export const test = _test
       installedSoftwareOnDisk: async ({ _browsersPath }, use) => {
         await use(async (registryPath?: string) => fs.promises.readdir(registryPath || _browsersPath).catch(() => []).then(files => files.map(f => f.split('-')[0]).filter(f => !f.startsWith('.'))));
       },
-      exec: async ({ registry, tmpWorkspace, _browsersPath }, use, testInfo) => {
+      exec: async ({ useRealCDN, tmpWorkspace, _browsersPath }, use, testInfo) => {
         await use(async (cmd: string, ...argsAndOrOptions: [] | [...string[]] | [...string[], ExecOptions] | [ExecOptions]) => {
           let args: string[] = [];
           let options: ExecOptions = {};
@@ -184,6 +164,7 @@ export const test = _test
                 'DISPLAY': process.env.DISPLAY,
                 'XAUTHORITY': process.env.XAUTHORITY,
                 'PLAYWRIGHT_BROWSERS_PATH': _browsersPath,
+                ...(useRealCDN ? {} : { PLAYWRIGHT_DOWNLOAD_HOST: process.env.CDN_PROXY_HOST }),
                 ...options.env,
               }
             });
@@ -217,7 +198,7 @@ export const test = _test
       },
       tsc: async ({ exec }, use) => {
         await exec('npm i --foreground-scripts typescript@3.8 @types/node@14');
-        await use((...args: ArgsOrOptions) => exec('npx', '-p', 'typescript@3.8', 'tsc', ...args));
+        await use((...args: ArgsOrOptions) => exec('npx', '-p', 'typescript@4.1.6', 'tsc', ...args));
       },
     });
 
