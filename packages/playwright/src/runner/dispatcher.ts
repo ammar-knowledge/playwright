@@ -50,36 +50,7 @@ export class Dispatcher {
     this._failureTracker = failureTracker;
   }
 
-  private _processFullySkippedJobs() {
-    // If all the tests in a group are skipped, we report them immediately
-    // without sending anything to a worker. This avoids creating unnecessary worker processes.
-    //
-    // However, if there is at least one non-skipped test in a group, we'll send
-    // the whole group to the worker process and report tests in the natural order,
-    // with skipped tests mixed in-between non-skipped. This makes
-    // for a better reporter experience.
-    while (!this._isStopped && this._queue.length) {
-      const group = this._queue[0];
-      const allTestsSkipped = group.tests.every(test => test.expectedStatus === 'skipped');
-      if (!allTestsSkipped)
-        break;
-
-      for (const test of group.tests) {
-        const result = test._appendTestResult();
-        result.status = 'skipped';
-        this._reporter.onTestBegin(test, result);
-        this._reportTestEnd(test, result);
-      }
-      this._queue.shift();
-    }
-
-    // If all remaining tests were skipped, resolve finished state.
-    this._checkFinished();
-  }
-
   private async _scheduleJob() {
-    this._processFullySkippedJobs();
-
     // 1. Find a job to run.
     if (this._isStopped || !this._queue.length)
       return;
@@ -107,6 +78,11 @@ export class Dispatcher {
   }
 
   private async _startJobInWorker(index: number, job: TestGroup) {
+    const stopCallback = () => this.stop().catch(() => {});
+    const jobDispatcher = new JobDispatcher(job, this._reporter, this._failureTracker, stopCallback);
+    if (jobDispatcher.skipWholeJob())
+      return;
+
     let worker = this._workerSlots[index].worker;
 
     // 1. Restart the worker if it has the wrong hash or is being stopped already.
@@ -116,9 +92,6 @@ export class Dispatcher {
       if (this._isStopped) // Check stopped signal after async hop.
         return;
     }
-
-    const stopCallback = () => this.stop().catch(() => {});
-    const jobDispatcher = new JobDispatcher(job, this._reporter, this._failureTracker, stopCallback);
     this._workerSlots[index].jobDispatcher = jobDispatcher;
 
     // 2. Start the worker if it is down.
@@ -468,24 +441,15 @@ class JobDispatcher {
         serialSuitesWithFailures.add(outermostSerialSuite);
     }
 
-    // We have failed tests that belong to a serial suite.
-    // We should skip all future tests from the same serial suite.
-    for (const test of this._remainingByTestId.values()) {
+    // If we have failed tests that belong to a serial suite,
+    // we should skip all future tests from the same serial suite.
+    const testsBelongingToSomeSerialSuiteWithFailures = [...this._remainingByTestId.values()].filter(test => {
       let parent: Suite | undefined = test.parent;
       while (parent && !serialSuitesWithFailures.has(parent))
         parent = parent.parent;
-
-      // Does not belong to the failed serial suite, keep it.
-      if (!parent)
-        continue;
-
-      // Emulate a "skipped" run, and drop this test from remaining.
-      const result = test._appendTestResult();
-      this._reporter.onTestBegin(test, result);
-      result.status = 'skipped';
-      this._reportTestEnd(test, result);
-      this._remainingByTestId.delete(test.id);
-    }
+      return !!parent;
+    });
+    this._massSkipTestsFromRemaining(new Set(testsBelongingToSomeSerialSuiteWithFailures.map(test => test.id)), []);
 
     for (const serialSuite of serialSuitesWithFailures) {
       // Add all tests from faiiled serial suites for possible retry.
@@ -538,6 +502,22 @@ class JobDispatcher {
       eventsHelper.addEventListener(worker, 'done', this._onDone.bind(this)),
       eventsHelper.addEventListener(worker, 'exit', this.onExit.bind(this)),
     ];
+  }
+
+  skipWholeJob(): boolean {
+    // If all the tests in a group are skipped, we report them immediately
+    // without sending anything to a worker. This avoids creating unnecessary worker processes.
+    //
+    // However, if there is at least one non-skipped test in a group, we'll send
+    // the whole group to the worker process and report tests in the natural order,
+    // with skipped tests mixed in-between non-skipped. This makes
+    // for a better reporter experience.
+    const allTestsSkipped = this._job.tests.every(test => test.expectedStatus === 'skipped');
+    if (allTestsSkipped) {
+      this._massSkipTestsFromRemaining(new Set(this._remainingByTestId.keys()), []);
+      return true;
+    }
+    return false;
   }
 
   currentlyRunning() {
