@@ -78,7 +78,8 @@ export class WKBrowser extends Browser {
 
   _onDisconnect() {
     for (const wkPage of this._wkPages.values())
-      wkPage.dispose(true);
+      wkPage.didClose();
+    this._wkPages.clear();
     for (const video of this._idToVideo.values())
       video.artifact.reportFinished(kBrowserClosedError);
     this._idToVideo.clear();
@@ -121,7 +122,7 @@ export class WKBrowser extends Browser {
     // here by simulating cancelled provisional load which matches downloads from network.
     //
     // TODO: this is racy, because download might be unrelated any navigation, and we will
-    // abort navgitation that is still running. We should be able to fix this by
+    // abort navigation that is still running. We should be able to fix this by
     // instrumenting policy decision start/proceed/cancel.
     page._page._frameManager.frameAbortedNavigation(payload.frameId, 'Download is starting');
     let originPage = page._initializedPage;
@@ -178,7 +179,6 @@ export class WKBrowser extends Browser {
     if (!wkPage)
       return;
     wkPage.didClose();
-    wkPage.dispose(false);
     this._wkPages.delete(pageProxyId);
   }
 
