@@ -178,12 +178,12 @@ export const expect = baseExpect.extend({
     const message = pass
       ? () => this.utils.matcherHint('toHaveAmount', undefined, undefined, { isNot: this.isNot }) +
           '\n\n' +
-          `Locator: \${locator}\n`,
-          `Expected: \${this.isNot ? 'not' : ''}\${this.utils.printExpected(expected)}\n` +
+          `Locator: ${locator}\n`,
+          `Expected: ${this.isNot ? 'not' : ''}${this.utils.printExpected(expected)}\n` +
           (matcherResult ? `Received: ${this.utils.printReceived(matcherResult.actual)}` : '')
       : () =>  this.utils.matcherHint('toHaveAmount', undefined, undefined, expectOptions) +
           '\n\n' +
-          `Locator: \${locator}\n`,
+          `Locator: ${locator}\n`,
           `Expected: ${this.utils.printExpected(expected)}\n` +
           (matcherResult ? `Received: ${this.utils.printReceived(matcherResult.actual)}` : '');
 
@@ -217,12 +217,12 @@ Do not confuse Playwright's `expect` with the [`expect` library](https://jestjs.
 You can combine custom matchers from multiple files or modules.
 
 ```js title="fixtures.ts"
-import { composedTest, composedExpect } from '@playwright/test';
+import { mergeTests, mergeExpects } from '@playwright/test';
 import { test as dbTest, expect as dbExpect } from 'database-test-utils';
 import { test as a11yTest, expect as a11yExpect } from 'a11y-test-utils';
 
-export const expect = composedExpect(dbExpect, a11yExpect);
-export const test = composedTest(dbTest, a11yTest);
+export const expect = mergeExpects(dbExpect, a11yExpect);
+export const test = mergeTests(dbTest, a11yTest);
 ```
 
 ```js title="test.spec.ts"
