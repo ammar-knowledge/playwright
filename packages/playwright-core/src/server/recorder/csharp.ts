@@ -76,13 +76,9 @@ export class CSharpLanguageGenerator implements LanguageGenerator {
     let subject: string;
     if (actionInContext.frame.isMainFrame) {
       subject = pageAlias;
-    } else if (actionInContext.frame.selectorsChain && action.name !== 'navigate') {
+    } else {
       const locators = actionInContext.frame.selectorsChain.map(selector => `.FrameLocator(${quote(selector)})`);
       subject = `${pageAlias}${locators.join('')}`;
-    } else if (actionInContext.frame.name) {
-      subject = `${pageAlias}.Frame(${quote(actionInContext.frame.name)})`;
-    } else {
-      subject = `${pageAlias}.FrameByUrl(${quote(actionInContext.frame.url)})`;
     }
 
     const signals = toSignalMap(action);
@@ -160,6 +156,12 @@ export class CSharpLanguageGenerator implements LanguageGenerator {
         return `await ${subject}.${this._asLocator(action.selector)}.SelectOptionAsync(${formatObject(action.options)});`;
       case 'assertText':
         return `await Expect(${subject}.${this._asLocator(action.selector)}).${action.substring ? 'ToContainTextAsync' : 'ToHaveTextAsync'}(${quote(action.text)});`;
+      case 'assertChecked':
+        return `await Expect(${subject}.${this._asLocator(action.selector)})${action.checked ? '' : '.Not'}.ToBeCheckedAsync();`;
+      case 'assertValue': {
+        const assertion = action.value ? `ToHaveValueAsync(${quote(action.value)})` : `ToBeEmpty()`;
+        return `await Expect(${subject}.${this._asLocator(action.selector)}).${assertion};`;
+      }
     }
   }
 

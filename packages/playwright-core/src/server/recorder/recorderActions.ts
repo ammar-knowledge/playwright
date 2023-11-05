@@ -27,7 +27,9 @@ export type ActionName =
   'select' |
   'uncheck' |
   'setInputFiles' |
-  'assertText';
+  'assertText' |
+  'assertValue' |
+  'assertChecked';
 
 export type ActionBase = {
   name: ActionName,
@@ -99,7 +101,19 @@ export type AssertTextAction = ActionBase & {
   substring: boolean,
 };
 
-export type Action = ClickAction | CheckAction | ClosesPageAction | OpenPageAction | UncheckAction | FillAction | NavigateAction | PressAction | SelectAction | SetInputFilesAction | AssertTextAction;
+export type AssertValueAction = ActionBase & {
+  name: 'assertValue',
+  selector: string,
+  value: string,
+};
+
+export type AssertCheckedAction = ActionBase & {
+  name: 'assertChecked',
+  selector: string,
+  checked: boolean,
+};
+
+export type Action = ClickAction | CheckAction | ClosesPageAction | OpenPageAction | UncheckAction | FillAction | NavigateAction | PressAction | SelectAction | SetInputFilesAction | AssertTextAction | AssertValueAction | AssertCheckedAction;
 
 // Signals.
 
@@ -128,10 +142,13 @@ export type DialogSignal = BaseSignal & {
 
 export type Signal = NavigationSignal | PopupSignal | DownloadSignal | DialogSignal;
 
-export type FrameDescription = {
-  pageAlias: string;
-  isMainFrame: boolean;
-  url: string;
-  name?: string;
-  selectorsChain?: string[];
+type FrameDescriptionMainFrame = {
+  isMainFrame: true;
 };
+
+type FrameDescriptionChildFrame = {
+  isMainFrame: false;
+  selectorsChain: string[];
+};
+
+export type FrameDescription = { pageAlias: string } & (FrameDescriptionMainFrame | FrameDescriptionChildFrame);

@@ -18,9 +18,7 @@ import type { Language } from '../../playwright-core/src/utils/isomorphic/locato
 
 export type Point = { x: number, y: number };
 
-export type Mode = 'inspecting' | 'recording' | 'none';
-
-export type RecordingTool = 'action' | 'assert';
+export type Mode = 'inspecting' | 'recording' | 'none' | 'assertingText' | 'recording-inspecting';
 
 export type EventData = {
   event: 'clear' | 'resume' | 'step' | 'pause' | 'setMode' | 'setRecordingTool' | 'selectorUpdated' | 'fileChanged';
@@ -29,11 +27,11 @@ export type EventData = {
 
 export type UIState = {
   mode: Mode;
-  tool: RecordingTool;
   actionPoint?: Point;
   actionSelector?: string;
   language: 'javascript' | 'python' | 'java' | 'csharp' | 'jsonl';
   testIdAttributeName: string;
+  overlayPosition: Point;
 };
 
 export type CallLogStatus = 'in-progress' | 'done' | 'error' | 'paused';
@@ -75,7 +73,6 @@ export type Source = {
 declare global {
   interface Window {
     playwrightSetMode: (mode: Mode) => void;
-    playwrightSetRecordingTool: (tool: RecordingTool) => void;
     playwrightSetPaused: (paused: boolean) => void;
     playwrightSetSources: (sources: Source[]) => void;
     playwrightUpdateLogs: (callLogs: CallLog[]) => void;

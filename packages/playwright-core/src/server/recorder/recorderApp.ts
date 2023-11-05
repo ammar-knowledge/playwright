@@ -20,7 +20,7 @@ import type { Page } from '../page';
 import { ProgressController } from '../progress';
 import { EventEmitter } from 'events';
 import { serverSideCallMetadata } from '../instrumentation';
-import type { CallLog, EventData, Mode, RecordingTool, Source } from '@recorder/recorderTypes';
+import type { CallLog, EventData, Mode, Source } from '@recorder/recorderTypes';
 import { isUnderTest } from '../../utils';
 import { mime } from '../../utilsBundle';
 import { syncLocalStorageWithSettings } from '../launchApp';
@@ -45,9 +45,8 @@ export interface IRecorderApp extends EventEmitter {
   close(): Promise<void>;
   setPaused(paused: boolean): Promise<void>;
   setMode(mode: Mode): Promise<void>;
-  setRecordingTool(tool: RecordingTool): Promise<void>;
   setFileIfNeeded(file: string): Promise<void>;
-  setSelector(selector: string, focus?: boolean): Promise<void>;
+  setSelector(selector: string, userGesture?: boolean): Promise<void>;
   updateCallLogs(callLogs: CallLog[]): Promise<void>;
   setSources(sources: Source[]): Promise<void>;
 }
@@ -56,9 +55,8 @@ export class EmptyRecorderApp extends EventEmitter implements IRecorderApp {
   async close(): Promise<void> {}
   async setPaused(paused: boolean): Promise<void> {}
   async setMode(mode: Mode): Promise<void> {}
-  async setRecordingTool(tool: RecordingTool): Promise<void> {}
   async setFileIfNeeded(file: string): Promise<void> {}
-  async setSelector(selector: string, focus?: boolean): Promise<void> {}
+  async setSelector(selector: string, userGesture?: boolean): Promise<void> {}
   async updateCallLogs(callLogs: CallLog[]): Promise<void> {}
   async setSources(sources: Source[]): Promise<void> {}
 }
@@ -146,12 +144,6 @@ export class RecorderApp extends EventEmitter implements IRecorderApp {
     }).toString(), { isFunction: true }, mode).catch(() => {});
   }
 
-  async setRecordingTool(tool: RecordingTool): Promise<void> {
-    await this._page.mainFrame().evaluateExpression(((tool: RecordingTool) => {
-      window.playwrightSetRecordingTool(tool);
-    }).toString(), { isFunction: true }, tool).catch(() => {});
-  }
-
   async setFileIfNeeded(file: string): Promise<void> {
     await this._page.mainFrame().evaluateExpression(((file: string) => {
       window.playwrightSetFileIfNeeded(file);
@@ -174,14 +166,18 @@ export class RecorderApp extends EventEmitter implements IRecorderApp {
       (process as any)._didSetSourcesForTest(sources[0].text);
   }
 
-  async setSelector(selector: string, focus?: boolean): Promise<void> {
-    if (focus) {
-      this._recorder.setMode('none');
-      this._page.bringToFront();
+  async setSelector(selector: string, userGesture?: boolean): Promise<void> {
+    if (userGesture) {
+      if (this._recorder.mode() === 'inspecting') {
+        this._recorder.setMode('none');
+        this._page.bringToFront();
+      } else {
+        this._recorder.setMode('recording');
+      }
     }
-    await this._page.mainFrame().evaluateExpression(((arg: any) => {
-      window.playwrightSetSelector(arg.selector, arg.focus);
-    }).toString(), { isFunction: true }, { selector, focus }).catch(() => {});
+    await this._page.mainFrame().evaluateExpression(((selector: string) => {
+      window.playwrightSetSelector(selector);
+    }).toString(), { isFunction: true }, selector).catch(() => {});
   }
 
   async updateCallLogs(callLogs: CallLog[]): Promise<void> {

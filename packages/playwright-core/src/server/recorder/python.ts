@@ -63,13 +63,9 @@ export class PythonLanguageGenerator implements LanguageGenerator {
     let subject: string;
     if (actionInContext.frame.isMainFrame) {
       subject = pageAlias;
-    } else if (actionInContext.frame.selectorsChain && action.name !== 'navigate') {
+    } else {
       const locators = actionInContext.frame.selectorsChain.map(selector => `.frame_locator(${quote(selector)})`);
       subject = `${pageAlias}${locators.join('')}`;
-    } else if (actionInContext.frame.name) {
-      subject = `${pageAlias}.frame(${formatOptions({ name: actionInContext.frame.name }, false)})`;
-    } else {
-      subject = `${pageAlias}.frame(${formatOptions({ url: actionInContext.frame.url }, false)})`;
     }
 
     const signals = toSignalMap(action);
@@ -140,6 +136,12 @@ export class PythonLanguageGenerator implements LanguageGenerator {
         return `${subject}.${this._asLocator(action.selector)}.select_option(${formatValue(action.options.length === 1 ? action.options[0] : action.options)})`;
       case 'assertText':
         return `expect(${subject}.${this._asLocator(action.selector)}).${action.substring ? 'to_contain_text' : 'to_have_text'}(${quote(action.text)})`;
+      case 'assertChecked':
+        return `expect(${subject}.${this._asLocator(action.selector)}).${action.checked ? 'to_be_checked()' : 'not_to_be_checked()'}`;
+      case 'assertValue': {
+        const assertion = action.value ? `to_have_value(${quote(action.value)})` : `to_be_empty()`;
+        return `expect(${subject}.${this._asLocator(action.selector)}).${assertion};`;
+      }
     }
   }
 

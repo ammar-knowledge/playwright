@@ -199,8 +199,8 @@ export const SnapshotTab: React.FunctionComponent<{
       }}>
         <BrowserFrame url={snapshotInfo.url} />
         <div className='snapshot-switcher'>
-          <iframe ref={iframeRef0} name='snapshot' className={loadingRef.current.visibleIframe === 0 ? 'snapshot-visible' : ''}></iframe>
-          <iframe ref={iframeRef1} name='snapshot' className={loadingRef.current.visibleIframe === 1 ? 'snapshot-visible' : ''}></iframe>
+          <iframe ref={iframeRef0} name='snapshot' title='DOM Snapshot' className={loadingRef.current.visibleIframe === 0 ? 'snapshot-visible' : ''}></iframe>
+          <iframe ref={iframeRef1} name='snapshot' title='DOM Snapshot' className={loadingRef.current.visibleIframe === 1 ? 'snapshot-visible' : ''}></iframe>
         </div>
       </div>
     </div>
@@ -239,10 +239,10 @@ export const InspectModeController: React.FunctionComponent<{
       const actionSelector = locatorOrSelectorAsSelector(sdkLanguage, highlightedLocator, testIdAttributeName);
       recorder.setUIState({
         mode: isInspecting ? 'inspecting' : 'none',
-        tool: 'action',
         actionSelector: actionSelector.startsWith(frameSelector) ? actionSelector.substring(frameSelector.length).trim() : undefined,
         language: sdkLanguage,
         testIdAttributeName,
+        overlayPosition: { x: 0, y: 0 },
       }, {
         async setSelector(selector: string) {
           setHighlightedLocator(asLocator(sdkLanguage, frameSelector + selector, false /* isFrameLocator */, true /* playSafe */));
