@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { Mode, Source } from '@recorder/recorderTypes';
+import type { ElementInfo, Mode, Source } from '@recorder/recorderTypes';
 import { gracefullyProcessExitDoNotHang } from '../utils/processLauncher';
 import type { Browser } from './browser';
 import type { BrowserContext } from './browserContext';
@@ -23,18 +23,21 @@ import type { InstrumentationListener } from './instrumentation';
 import type { Playwright } from './playwright';
 import { Recorder } from './recorder';
 import { EmptyRecorderApp } from './recorder/recorderApp';
-import { asLocator } from '../utils/isomorphic/locatorGenerators';
-import type { Language } from '../utils/isomorphic/locatorGenerators';
+import { asLocator, type Language } from '../utils';
+import { parseYamlForAriaSnapshot } from './ariaSnapshot';
+import type { ParsedYaml } from '../utils/isomorphic/ariaSnapshot';
+import { parseYamlTemplate } from '../utils/isomorphic/ariaSnapshot';
+import { unsafeLocatorOrSelectorAsSelector } from '../utils/isomorphic/locatorParser';
 
 const internalMetadata = serverSideCallMetadata();
 
 export class DebugController extends SdkObject {
   static Events = {
-    BrowsersChanged: 'browsersChanged',
     StateChanged: 'stateChanged',
     InspectRequested: 'inspectRequested',
     SourceChanged: 'sourceChanged',
     Paused: 'paused',
+    SetModeRequested: 'setModeRequested',
   };
 
   private _autoCloseTimer: NodeJS.Timeout | undefined;
@@ -53,7 +56,6 @@ export class DebugController extends SdkObject {
   initialize(codegenId: string, sdkLanguage: Language) {
     this._codegenId = codegenId;
     this._sdkLanguage = sdkLanguage;
-    Recorder.setAppFactory(async () => new InspectingRecorderApp(this));
   }
 
   setAutoCloseAllowed(allowed: boolean) {
@@ -63,7 +65,6 @@ export class DebugController extends SdkObject {
   dispose() {
     this.setReportStateChanged(false);
     this.setAutoCloseAllowed(false);
-    Recorder.setAppFactory(undefined);
   }
 
   setReportStateChanged(enabled: boolean) {
@@ -145,9 +146,21 @@ export class DebugController extends SdkObject {
     this._autoCloseTimer = setTimeout(heartBeat, 30000);
   }
 
-  async highlight(selector: string) {
-    for (const recorder of await this._allRecorders())
-      recorder.setHighlightedSelector(this._sdkLanguage, selector);
+  async highlight(params: { selector?: string, ariaTemplate?: string }) {
+    // Assert parameters validity.
+    if (params.selector)
+      unsafeLocatorOrSelectorAsSelector(this._sdkLanguage, params.selector, 'data-testid');
+    let parsedYaml: ParsedYaml | undefined;
+    if (params.ariaTemplate) {
+      parsedYaml = parseYamlForAriaSnapshot(params.ariaTemplate);
+      parseYamlTemplate(parsedYaml);
+    }
+    for (const recorder of await this._allRecorders()) {
+      if (parsedYaml)
+        recorder.setHighlightedAriaTemplate(parsedYaml);
+      else if (params.selector)
+        recorder.setHighlightedSelector(this._sdkLanguage, params.selector);
+    }
   }
 
   async hideHighlight() {
@@ -193,8 +206,6 @@ export class DebugController extends SdkObject {
         pageCount += context.pages().length;
       }
     }
-    // TODO: browsers is deprecated, remove it.
-    this.emit(DebugController.Events.BrowsersChanged, browsers);
     this.emit(DebugController.Events.StateChanged, { pageCount });
   }
 
@@ -202,7 +213,7 @@ export class DebugController extends SdkObject {
     const contexts = new Set<BrowserContext>();
     for (const page of this._playwright.allPages())
       contexts.add(page.context());
-    const result = await Promise.all([...contexts].map(c => Recorder.show(c, { omitCallTracking: true })));
+    const result = await Promise.all([...contexts].map(c => Recorder.showInspector(c, { omitCallTracking: true }, () => Promise.resolve(new InspectingRecorderApp(this)))));
     return result.filter(Boolean) as Recorder[];
   }
 
@@ -226,9 +237,9 @@ class InspectingRecorderApp extends EmptyRecorderApp {
     this._debugController = debugController;
   }
 
-  override async setSelector(selector: string): Promise<void> {
-    const locator: string = asLocator(this._debugController._sdkLanguage, selector);
-    this._debugController.emit(DebugController.Events.InspectRequested, { selector, locator });
+  override async elementPicked(elementInfo: ElementInfo): Promise<void> {
+    const locator: string = asLocator(this._debugController._sdkLanguage, elementInfo.selector);
+    this._debugController.emit(DebugController.Events.InspectRequested, { selector: elementInfo.selector, locator, ariaSnapshot: elementInfo.ariaSnapshot });
   }
 
   override async setSources(sources: Source[]): Promise<void> {
@@ -239,5 +250,9 @@ class InspectingRecorderApp extends EmptyRecorderApp {
 
   override async setPaused(paused: boolean) {
     this._debugController.emit(DebugController.Events.Paused, { paused });
+  }
+
+  override async setMode(mode: Mode) {
+    this._debugController.emit(DebugController.Events.SetModeRequested, { mode });
   }
 }

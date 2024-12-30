@@ -52,7 +52,9 @@ it('should open devtools when "devtools: true" option is given', async ({ browse
   await browser.close();
 });
 
-it('should return background pages', async ({ browserType, createUserDataDir, asset }) => {
+it('should return background pages', async ({ browserType, createUserDataDir, asset, isHeadlessShell }) => {
+  it.skip(isHeadlessShell, 'Headless Shell has no support for extensions');
+
   const userDataDir = await createUserDataDir();
   const extensionPath = asset('simple-extension');
   const extensionOptions = {
@@ -75,7 +77,9 @@ it('should return background pages', async ({ browserType, createUserDataDir, as
   expect(context.backgroundPages().length).toBe(0);
 });
 
-it('should return background pages when recording video', async ({ browserType, createUserDataDir, asset }, testInfo) => {
+it('should return background pages when recording video', async ({ browserType, createUserDataDir, asset, isHeadlessShell }, testInfo) => {
+  it.skip(isHeadlessShell, 'Headless Shell has no support for extensions');
+
   const userDataDir = await createUserDataDir();
   const extensionPath = asset('simple-extension');
   const extensionOptions = {
@@ -99,7 +103,9 @@ it('should return background pages when recording video', async ({ browserType, 
   await context.close();
 });
 
-it('should support request/response events when using backgroundPage()', async ({ browserType, createUserDataDir, asset, server }) => {
+it('should support request/response events when using backgroundPage()', async ({ browserType, createUserDataDir, asset, server, isHeadlessShell }) => {
+  it.skip(isHeadlessShell, 'Headless Shell has no support for extensions');
+
   server.setRoute('/empty.html', (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html', 'x-response-foobar': 'BarFoo' });
     res.end(`<span>hello world!</span>`);
@@ -143,6 +149,29 @@ it('should support request/response events when using backgroundPage()', async (
   expect(await response.text()).toBe('<span>hello world!</span>');
   expect(await response.allHeaders()).toEqual(expect.objectContaining({ 'x-response-foobar': 'BarFoo' }));
 
+  await context.close();
+});
+
+it('should report console messages from content script', {
+  annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/32762' }
+}, async ({ browserType, createUserDataDir, asset, server, isHeadlessShell }) => {
+  it.skip(isHeadlessShell, 'Headless Shell has no support for extensions');
+
+  const userDataDir = await createUserDataDir();
+  const extensionPath = asset('extension-with-logging');
+  const extensionOptions = {
+    headless: false,
+    args: [
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
+    ],
+  };
+  const context = await browserType.launchPersistentContext(userDataDir, extensionOptions);
+  const page = await context.newPage();
+  const consolePromise = page.waitForEvent('console', e => e.text().includes('Test console log from a third-party execution context'));
+  await page.goto(server.EMPTY_PAGE);
+  const message = await consolePromise;
+  expect(message.text()).toContain('Test console log from a third-party execution context');
   await context.close();
 });
 

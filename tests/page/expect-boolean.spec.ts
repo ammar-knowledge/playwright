@@ -138,6 +138,13 @@ test.describe('toBeEditable', () => {
     const locator = page.locator('input');
     await expect(locator).not.toBeEditable({ editable: false });
   });
+
+  test('throws', async ({ page }) => {
+    await page.setContent('<button>');
+    const locator = page.locator('button');
+    const error = await expect(locator).toBeEditable().catch(e => e);
+    expect(error.message).toContain('Element is not an <input>, <textarea>, <select> or [contenteditable] and does not have a role allowing [aria-readonly]');
+  });
 });
 
 test.describe('toBeEnabled', () => {
@@ -455,7 +462,7 @@ test('should print selector syntax error', async ({ page }) => {
 
 test.describe(() => {
   test.skip(({ isAndroid }) => isAndroid, 'server.EMPTY_PAGE is the emulator address 10.0.2.2');
-  test.skip(({ isElectron }) => isElectron, 'Protocol error (Storage.getCookies): Browser context management is not supported.');
+  test.skip(({ isElectron, electronMajorVersion }) => isElectron && electronMajorVersion < 30, 'Protocol error (Storage.getCookies): Browser context management is not supported.');
 
   test('toBeOK', async ({ page, server }) => {
     const res = await page.request.get(server.EMPTY_PAGE);

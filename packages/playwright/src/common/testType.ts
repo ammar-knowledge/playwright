@@ -19,9 +19,10 @@ import { currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuit
 import { TestCase, Suite } from './test';
 import { wrapFunctionWithLocation } from '../transform/transform';
 import type { FixturesWithLocation } from './config';
-import type { Fixtures, TestType } from '../../types/test';
+import type { Fixtures, TestType, TestDetails } from '../../types/test';
 import type { Location } from '../../types/testReporter';
-import { getPackageManagerExecCommand } from 'playwright-core/lib/utils';
+import { getPackageManagerExecCommand, monotonicTime, raceAgainstDeadline, zones } from 'playwright-core/lib/utils';
+import { errors } from 'playwright-core';
 
 const testTypeSymbol = Symbol('testType');
 
@@ -52,9 +53,12 @@ export class TestTypeImpl {
     test.skip = wrapFunctionWithLocation(this._modifier.bind(this, 'skip'));
     test.fixme = wrapFunctionWithLocation(this._modifier.bind(this, 'fixme'));
     test.fail = wrapFunctionWithLocation(this._modifier.bind(this, 'fail'));
+    test.fail.only = wrapFunctionWithLocation(this._createTest.bind(this, 'fail.only'));
     test.slow = wrapFunctionWithLocation(this._modifier.bind(this, 'slow'));
     test.setTimeout = wrapFunctionWithLocation(this._setTimeout.bind(this));
-    test.step = this._step.bind(this);
+    test.step = this._step.bind(this, 'pass');
+    test.step.fail = this._step.bind(this, 'fail');
+    test.step.fixme = this._step.bind(this, 'fixme');
     test.use = wrapFunctionWithLocation(this._use.bind(this));
     test.extend = wrapFunctionWithLocation(this._extend.bind(this));
     test.info = () => {
@@ -81,35 +85,67 @@ export class TestTypeImpl {
     return suite;
   }
 
-  private _createTest(type: 'default' | 'only' | 'skip' | 'fixme', location: Location, title: string, fn: Function) {
+  private _createTest(type: 'default' | 'only' | 'skip' | 'fixme' | 'fail' | 'fail.only', location: Location, title: string, fnOrDetails: Function | TestDetails, fn?: Function) {
     throwIfRunningInsideJest();
     const suite = this._currentSuite(location, 'test()');
     if (!suite)
       return;
-    const test = new TestCase(title, fn, this, location);
+
+    let details: TestDetails;
+    let body: Function;
+    if (typeof fnOrDetails === 'function') {
+      body = fnOrDetails;
+      details = {};
+    } else {
+      body = fn!;
+      details = fnOrDetails;
+    }
+
+    const validatedDetails = validateTestDetails(details);
+    const test = new TestCase(title, body, this, location);
     test._requireFile = suite._requireFile;
+    test._staticAnnotations.push(...validatedDetails.annotations);
+    test._tags.push(...validatedDetails.tags);
     suite._addTest(test);
 
-    if (type === 'only')
+    if (type === 'only' || type === 'fail.only')
       test._only = true;
-    if (type === 'skip' || type === 'fixme')
+    if (type === 'skip' || type === 'fixme' || type === 'fail')
       test._staticAnnotations.push({ type });
+    else if (type === 'fail.only')
+      test._staticAnnotations.push({ type: 'fail' });
   }
 
-  private _describe(type: 'default' | 'only' | 'serial' | 'serial.only' | 'parallel' | 'parallel.only' | 'skip' | 'fixme', location: Location, title: string | Function, fn?: Function) {
+  private _describe(type: 'default' | 'only' | 'serial' | 'serial.only' | 'parallel' | 'parallel.only' | 'skip' | 'fixme', location: Location, titleOrFn: string | Function, fnOrDetails?: TestDetails | Function, fn?: Function) {
     throwIfRunningInsideJest();
     const suite = this._currentSuite(location, 'test.describe()');
     if (!suite)
       return;
 
-    if (typeof title === 'function') {
-      fn = title;
+    let title: string;
+    let body: Function;
+    let details: TestDetails;
+
+    if (typeof titleOrFn === 'function') {
       title = '';
+      details = {};
+      body = titleOrFn;
+    } else if (typeof fnOrDetails === 'function') {
+      title = titleOrFn;
+      details = {};
+      body = fnOrDetails;
+    } else {
+      title = titleOrFn;
+      details = fnOrDetails!;
+      body = fn!;
     }
 
+    const validatedDetails = validateTestDetails(details);
     const child = new Suite(title, 'describe');
     child._requireFile = suite._requireFile;
     child.location = location;
+    child._staticAnnotations.push(...validatedDetails.annotations);
+    child._tags.push(...validatedDetails.tags);
     suite._addSuite(child);
 
     if (type === 'only' || type === 'serial.only' || type === 'parallel.only')
@@ -129,7 +165,7 @@ export class TestTypeImpl {
     }
 
     setCurrentlyLoadingFileSuite(child);
-    fn!();
+    body();
     setCurrentlyLoadingFileSuite(suite);
   }
 
@@ -170,12 +206,17 @@ export class TestTypeImpl {
     }
   }
 
-  private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', location: Location, ...modifierArgs: [arg?: any | Function, description?: string]) {
+  private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', location: Location, ...modifierArgs: any[]) {
     const suite = currentlyLoadingFileSuite();
     if (suite) {
-      if (typeof modifierArgs[0] === 'string' && typeof modifierArgs[1] === 'function' && (type === 'skip' || type === 'fixme')) {
-        // Support for test.{skip,fixme}('title', () => {})
+      if (typeof modifierArgs[0] === 'string' && typeof modifierArgs[1] === 'function' && (type === 'skip' || type === 'fixme' || type === 'fail')) {
+        // Support for test.{skip,fixme,fail}(title, body)
         this._createTest(type, location, modifierArgs[0], modifierArgs[1]);
+        return;
+      }
+      if (typeof modifierArgs[0] === 'string' && typeof modifierArgs[1] === 'object' && typeof modifierArgs[2] === 'function' && (type === 'skip' || type === 'fixme' || type === 'fail')) {
+        // Support for test.{skip,fixme,fail}(title, details, body)
+        this._createTest(type, location, modifierArgs[0], modifierArgs[1], modifierArgs[2]);
         return;
       }
 
@@ -218,13 +259,40 @@ export class TestTypeImpl {
     suite._use.push({ fixtures, location });
   }
 
-  async _step<T>(title: string, body: () => Promise<T>, options: { box?: boolean } = {}): Promise<T> {
+  async _step<T>(expectation: 'pass'|'fail'|'fixme', title: string, body: () => T | Promise<T>, options: {box?: boolean, location?: Location, timeout?: number } = {}): Promise<T> {
     const testInfo = currentTestInfo();
     if (!testInfo)
       throw new Error(`test.step() can only be called from a test`);
-    return testInfo._runAsStep({ category: 'test.step', title, box: options.box }, async () => {
-      // Make sure that internal "step" is not leaked to the user callback.
-      return await body();
+    if (expectation === 'fixme')
+      return undefined as T;
+    const step = testInfo._addStep({ category: 'test.step', title, location: options.location, box: options.box });
+    return await zones.run('stepZone', step, async () => {
+      let result;
+      let error;
+      try {
+        result = await raceAgainstDeadline(async () => body(), options.timeout ? monotonicTime() + options.timeout : 0);
+      } catch (e) {
+        error = e;
+      }
+      if (result?.timedOut) {
+        const error = new errors.TimeoutError(`Step timeout ${options.timeout}ms exceeded.`);
+        step.complete({ error });
+        throw error;
+      }
+      const expectedToFail = expectation === 'fail';
+      if (error) {
+        step.complete({ error });
+        if (expectedToFail)
+          return undefined as T;
+        throw error;
+      }
+      if (expectedToFail) {
+        error = new Error(`Step is expected to fail, but passed`);
+        step.complete({ error });
+        throw error;
+      }
+      step.complete({});
+      return result!.result;
     });
   }
 
@@ -245,6 +313,16 @@ function throwIfRunningInsideJest() {
         `See https://playwright.dev/docs/intro for more information about Playwright Test.`,
     );
   }
+}
+
+function validateTestDetails(details: TestDetails) {
+  const annotations = Array.isArray(details.annotation) ? details.annotation : (details.annotation ? [details.annotation] : []);
+  const tags = Array.isArray(details.tag) ? details.tag : (details.tag ? [details.tag] : []);
+  for (const tag of tags) {
+    if (tag[0] !== '@')
+      throw new Error(`Tag must start with "@" symbol, got "${tag}" instead.`);
+  }
+  return { annotations, tags };
 }
 
 export const rootTestType = new TestTypeImpl([]);
