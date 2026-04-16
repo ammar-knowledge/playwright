@@ -15,9 +15,10 @@
  */
 
 import { contextTest as it, expect } from '../config/browserTest';
-import { asLocator, asLocators } from '../../packages/playwright-core/lib/utils/isomorphic/locatorGenerators';
-import { locatorOrSelectorAsSelector as parseLocator } from '../../packages/playwright-core/lib/utils/isomorphic/locatorParser';
+import { iso } from '../../packages/playwright-core/lib/coreBundle';
 import type { Page, Frame, Locator, FrameLocator } from 'playwright-core';
+
+const { asLocator, asLocators, asLocatorDescription, locatorOrSelectorAsSelector: parseLocator } = iso;
 
 it.skip(({ mode }) => mode !== 'default');
 
@@ -317,6 +318,21 @@ it('reverse engineer hasNotText', async ({ page }) => {
     java: `getByText("Hello").filter(new Locator.FilterOptions().setHasNotText("wo\\"rld\\n"))`,
     javascript: `getByText('Hello').filter({ hasNotText: 'wo"rld\\n' })`,
     python: `get_by_text("Hello").filter(has_not_text="wo\\"rld\\n")`,
+  });
+});
+
+it('reverse engineer visible', async ({ page }) => {
+  expect.soft(generate(page.getByText('Hello').filter({ visible: true }).locator('div'))).toEqual({
+    csharp: `GetByText("Hello").Filter(new() { Visible = true }).Locator("div")`,
+    java: `getByText("Hello").filter(new Locator.FilterOptions().setVisible(true)).locator("div")`,
+    javascript: `getByText('Hello').filter({ visible: true }).locator('div')`,
+    python: `get_by_text("Hello").filter(visible=True).locator("div")`,
+  });
+  expect.soft(generate(page.getByText('Hello').filter({ visible: false }).locator('div'))).toEqual({
+    csharp: `GetByText("Hello").Filter(new() { Visible = false }).Locator("div")`,
+    java: `getByText("Hello").filter(new Locator.FilterOptions().setVisible(false)).locator("div")`,
+    javascript: `getByText('Hello').filter({ visible: false }).locator('div')`,
+    python: `get_by_text("Hello").filter(visible=False).locator("div")`,
   });
 });
 
@@ -638,4 +654,11 @@ it('should not oom in locator parser', async ({ page }) => {
       .contentFrame().locator('text=L28').or(l('text=L29')))));
   const error = await locator.count().catch(e => e);
   expect(error.message).toContain('Frame locators are not allowed inside composite locators');
+});
+
+it('asLocatorDescription invalid input', async () => {
+  expect.soft(asLocatorDescription('javascript', `body >> internal:describe="desc"`)).toBe(`desc`);
+  expect.soft(asLocatorDescription('javascript', `body >> internal:describe=12`)).toBe(`locator('body')`);
+  expect.soft(asLocatorDescription('javascript', `following-sibling::*[1]`)).toBe(`following-sibling::*[1]`);
+  expect.soft(asLocatorDescription('javascript', `body >> internal:describe="desc" >> div`)).toBe(`locator('body').locator('div')`);
 });

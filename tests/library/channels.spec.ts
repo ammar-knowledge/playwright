@@ -45,15 +45,12 @@ it('should scope context handles', async ({ browserType, server, expectScopeStat
       { _guid: 'android', objects: [] },
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [
         { _guid: 'browser', objects: [] }
       ] },
       { _guid: 'electron', objects: [] },
       { _guid: 'localUtils', objects: [] },
       { _guid: 'Playwright', objects: [] },
-      { _guid: 'selectors', objects: [] },
     ]
   };
   expectScopeState(browser, GOLDEN_PRECONDITION);
@@ -69,8 +66,6 @@ it('should scope context handles', async ({ browserType, server, expectScopeStat
       { _guid: 'android', objects: [] },
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [
         { _guid: 'browser', objects: [
           { _guid: 'browser-context', objects: [
@@ -80,6 +75,7 @@ it('should scope context handles', async ({ browserType, server, expectScopeStat
                 { _guid: 'response', objects: [] },
               ] },
             ] },
+            { _guid: 'debugger', objects: [] },
             { _guid: 'request-context', objects: [] },
             { _guid: 'tracing', objects: [] }
           ] },
@@ -88,7 +84,6 @@ it('should scope context handles', async ({ browserType, server, expectScopeStat
       { _guid: 'electron', objects: [] },
       { _guid: 'localUtils', objects: [] },
       { _guid: 'Playwright', objects: [] },
-      { _guid: 'selectors', objects: [] },
     ]
   });
 
@@ -107,15 +102,12 @@ it('should scope CDPSession handles', async ({ browserType, browserName, expectS
       { _guid: 'android', objects: [] },
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [
         { _guid: 'browser', objects: [] }
       ] },
       { _guid: 'electron', objects: [] },
       { _guid: 'localUtils', objects: [] },
       { _guid: 'Playwright', objects: [] },
-      { _guid: 'selectors', objects: [] },
     ]
   };
   expectScopeState(browserType, GOLDEN_PRECONDITION);
@@ -127,8 +119,6 @@ it('should scope CDPSession handles', async ({ browserType, browserName, expectS
       { _guid: 'android', objects: [] },
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [
         { _guid: 'browser', objects: [
           { _guid: 'cdp-session', objects: [] },
@@ -137,7 +127,6 @@ it('should scope CDPSession handles', async ({ browserType, browserName, expectS
       { _guid: 'electron', objects: [] },
       { _guid: 'localUtils', objects: [] },
       { _guid: 'Playwright', objects: [] },
-      { _guid: 'selectors', objects: [] },
     ]
   });
 
@@ -155,12 +144,9 @@ it('should scope browser handles', async ({ browserType, expectScopeState }) => 
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
       { _guid: 'electron', objects: [] },
       { _guid: 'localUtils', objects: [] },
       { _guid: 'Playwright', objects: [] },
-      { _guid: 'selectors', objects: [] },
     ]
   };
   expectScopeState(browserType, GOLDEN_PRECONDITION);
@@ -173,12 +159,11 @@ it('should scope browser handles', async ({ browserType, expectScopeState }) => 
       { _guid: 'android', objects: [] },
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [
         {
           _guid: 'browser', objects: [
             { _guid: 'browser-context', objects: [
+              { _guid: 'debugger', objects: [] },
               { _guid: 'request-context', objects: [] },
               { _guid: 'tracing', objects: [] },
             ] },
@@ -189,7 +174,6 @@ it('should scope browser handles', async ({ browserType, expectScopeState }) => 
       { _guid: 'electron', objects: [] },
       { _guid: 'localUtils', objects: [] },
       { _guid: 'Playwright', objects: [] },
-      { _guid: 'selectors', objects: [] },
     ]
   });
 
@@ -211,8 +195,6 @@ it('should not generate dispatchers for subresources w/o listeners', async ({ pa
       { _guid: 'android', objects: [] },
       { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
-      { _guid: 'browser-type', objects: [] },
       { _guid: 'browser-type', objects: [
         {
           _guid: 'browser', objects: [
@@ -225,6 +207,7 @@ it('should not generate dispatchers for subresources w/o listeners', async ({ pa
                   ] },
                 ]
               },
+              { _guid: 'debugger', objects: [] },
               { _guid: 'request-context', objects: [] },
               { _guid: 'tracing', objects: [] }
             ] },
@@ -234,7 +217,6 @@ it('should not generate dispatchers for subresources w/o listeners', async ({ pa
       { _guid: 'electron', objects: [] },
       { _guid: 'localUtils', objects: [] },
       { _guid: 'Playwright', objects: [] },
-      { _guid: 'selectors', objects: [] },
     ]
   });
 });
@@ -255,9 +237,9 @@ it('should work with the domain module', async ({ browserType, server, browserNa
   let callback;
   const result = new Promise(f => callback = f);
   page.on('websocket', ws => ws.on('socketerror', callback));
-  void page.evaluate(port => {
-    new WebSocket('ws://localhost:' + port + '/bogus-ws');
-  }, server.PORT);
+  void page.evaluate(host => {
+    new WebSocket('ws://' + host + '/bogus-ws');
+  }, server.HOST);
   const message = await result;
   if (browserName === 'firefox')
     expect(message).toBe('CLOSE_ABNORMAL');
@@ -294,14 +276,6 @@ it('exposeFunction should not leak', async ({ page, expectScopeState, server }) 
       },
       {
         '_guid': 'browser-type',
-        'objects': [],
-      },
-      {
-        '_guid': 'browser-type',
-        'objects': [],
-      },
-      {
-        '_guid': 'browser-type',
         'objects': [
           {
             '_guid': 'browser',
@@ -312,6 +286,10 @@ it('exposeFunction should not leak', async ({ page, expectScopeState, server }) 
                   {
                     '_guid': 'page',
                     'objects': [
+                      {
+                        '_guid': 'disposable',
+                        'objects': [],
+                      },
                       {
                         '_guid': 'frame',
                         'objects': [],
@@ -326,6 +304,10 @@ it('exposeFunction should not leak', async ({ page, expectScopeState, server }) 
                         ],
                       },
                     ],
+                  },
+                  {
+                    '_guid': 'debugger',
+                    'objects': [],
                   },
                   {
                     '_guid': 'request-context',
@@ -351,10 +333,6 @@ it('exposeFunction should not leak', async ({ page, expectScopeState, server }) 
       },
       {
         '_guid': 'Playwright',
-        'objects': [],
-      },
-      {
-        '_guid': 'selectors',
         'objects': [],
       },
     ],

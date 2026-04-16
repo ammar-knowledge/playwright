@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { asLocator } from '../../utils';
-import type * as actions from '@recorder/actions';
+import { asLocator } from '@isomorphic/locatorGenerators';
+
 import type { Language, LanguageGenerator, LanguageGeneratorOptions } from './types';
+import type * as actions from '@recorder/actions';
 
 export class JsonlLanguageGenerator implements LanguageGenerator {
   id = 'jsonl';
@@ -28,8 +29,9 @@ export class JsonlLanguageGenerator implements LanguageGenerator {
     const locator = (actionInContext.action as any).selector ? JSON.parse(asLocator('jsonl', (actionInContext.action as any).selector)) : undefined;
     const entry = {
       ...actionInContext.action,
-      pageAlias: actionInContext.frame.pageAlias,
+      ...actionInContext.frame,
       locator,
+      ariaSnapshot: undefined,
     };
     return JSON.stringify(entry);
   }

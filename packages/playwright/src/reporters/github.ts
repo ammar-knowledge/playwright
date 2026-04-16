@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
-import { ms as milliseconds } from 'playwright-core/lib/utilsBundle';
 import path from 'path';
-import { BaseReporter, colors, formatError, formatResultFailure, formatRetry, formatTestHeader, formatTestTitle, stripAnsiEscapes } from './base';
-import type { TestCase, FullResult, TestError } from '../../types/testReporter';
+
+import { noColors } from '@isomorphic/colors';
+import { msToString } from '@isomorphic/formatUtils';
+
+import { TerminalReporter, formatResultFailure, formatRetry } from './base';
+import { stripAnsiEscapes } from '../util';
+
+import type { FullResult, TestCase, TestError } from '../../types/testReporter';
 
 type GitHubLogType = 'debug' | 'notice' | 'warning' | 'error';
 
@@ -36,7 +41,8 @@ class GitHubLogger {
     const configs = Object.entries(options)
         .map(([key, option]) => `${key}=${option}`)
         .join(',');
-    console.log(stripAnsiEscapes(`::${type} ${configs}::${message}`));
+    // eslint-disable-next-line no-restricted-properties
+    process.stdout.write(stripAnsiEscapes(`::${type} ${configs}::${message}\n`));
   }
 
   debug(message: string, options?: GitHubLogOptions) {
@@ -56,8 +62,13 @@ class GitHubLogger {
   }
 }
 
-export class GitHubReporter extends BaseReporter {
+export class GitHubReporter extends TerminalReporter {
   githubLogger = new GitHubLogger();
+
+  constructor(options: { omitFailures?: boolean } = {}) {
+    super(options);
+    this.screen = { ...this.screen, colors: noColors };
+  }
 
   printsToStdio() {
     return false;
@@ -69,7 +80,7 @@ export class GitHubReporter extends BaseReporter {
   }
 
   override onError(error: TestError) {
-    const errorMessage = formatError(error, false).message;
+    const errorMessage = this.formatError(error).message;
     this.githubLogger.error(errorMessage);
   }
 
@@ -85,7 +96,7 @@ export class GitHubReporter extends BaseReporter {
   private _printSlowTestAnnotations() {
     this.getSlowTests().forEach(([file, duration]) => {
       const filePath = workspaceRelativePath(path.join(process.cwd(), file));
-      this.githubLogger.warning(`${filePath} took ${milliseconds(duration)}`, {
+      this.githubLogger.warning(`${filePath} took ${msToString(duration)}`, {
         title: 'Slow Test',
         file: filePath,
       });
@@ -100,10 +111,10 @@ export class GitHubReporter extends BaseReporter {
 
   private _printFailureAnnotations(failures: TestCase[]) {
     failures.forEach((test, index) => {
-      const title = formatTestTitle(this.config, test);
-      const header = formatTestHeader(this.config, test, { indent: '  ', index: index + 1, mode: 'error' });
+      const title = this.formatTestTitle(test);
+      const header = this.formatTestHeader(test, { indent: '  ', index: index + 1, mode: 'error' });
       for (const result of test.results) {
-        const errors = formatResultFailure(test, result, '    ', colors.enabled);
+        const errors = formatResultFailure(this.screen, test, result, '    ');
         for (const error of errors) {
           const options: GitHubLogOptions = {
             file: workspaceRelativePath(error.location?.file || test.location.file),
@@ -113,7 +124,7 @@ export class GitHubReporter extends BaseReporter {
             options.line = error.location.line;
             options.col = error.location.column;
           }
-          const message = [header, ...formatRetry(result), error.message].join('\n');
+          const message = [header, ...formatRetry(this.screen, result), error.message].join('\n');
           this.githubLogger.error(message, options);
         }
       }

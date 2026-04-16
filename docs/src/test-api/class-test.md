@@ -56,7 +56,7 @@ test('another test @smoke', async ({ page }) => {
 Test tags are displayed in the test report, and are available to a custom reporter via `TestCase.tags` property.
 
 You can also filter tests by their tags during test execution:
-* in the [command line](../test-cli.md#reference);
+* in the [command line](../test-cli.md#all-options);
 * in the config with [`property: TestConfig.grep`] and [`property: TestProject.grep`];
 
 Learn more about [tagging](../test-annotations.md#tag-tests).
@@ -469,7 +469,18 @@ Learn more about the execution modes [here](../test-parallel.md).
   test('runs in parallel 2', async ({ page }) => {});
   ```
 
-* Running tests serially, retrying from the start.
+* Running tests in order, retrying each failed test independently.
+
+  This is the default mode. It can be useful to set it explicitly to override project configuration that uses `fullyParallel`.
+
+  ```js
+  // Tests in this file run in order. Retries, if any, run independently.
+  test.describe.configure({ mode: 'default' });
+  test('runs first', async ({ page }) => {});
+  test('runs second', async ({ page }) => {});
+  ```
+
+* Running tests serially, retrying from the start. If one of the serial tests fails, all subsequent tests are skipped.
 
   :::note
   Running serially is not recommended. It is usually better to make your tests isolated, so they can be run independently.
@@ -1033,6 +1044,33 @@ An object containing fixtures and/or options. Learn more about [fixtures format]
 
 
 
+## method: Test.abort
+* since: v1.60
+
+Aborts the currently running test by throwing an error. The test is immediately marked as failed and execution stops. This is useful from inside a fixture or a route handler when you have detected an unrecoverable misuse and want to fail the test right away.
+
+**Usage**
+
+```js
+import { test, expect } from '@playwright/test';
+
+test('does not publish to shared page', async ({ page }) => {
+  await page.route('**/publish', route => {
+    test.abort('Tests must not publish to the shared page. Use the `clone` option.');
+    return route.abort();
+  });
+  // ...
+});
+```
+
+### param: Test.abort.message
+* since: v1.60
+- `message` ?<[string]>
+
+Optional message describing the reason for the abort. It will be included in the failure error.
+
+
+
 ## method: Test.fail
 * since: v1.10
 
@@ -1278,13 +1316,13 @@ Test body that takes one or two arguments: an object with fixtures and optional 
 * since: v1.10
 - `condition` ?<[boolean]>
 
-Test is marked as "should fail" when the condition is `true`.
+Test is marked as "fixme" when the condition is `true`.
 
 ### param: Test.fixme.callback
 * since: v1.10
 - `callback` ?<[function]\([Fixtures]\):[boolean]>
 
-A function that returns whether to mark as "should fail", based on test fixtures. Test or tests are marked as "should fail" when the return value is `true`.
+A function that returns whether to mark as "fixme", based on test fixtures. Test or tests are marked as "fixme" when the return value is `true`.
 
 ### param: Test.fixme.description
 * since: v1.10
@@ -1414,7 +1452,7 @@ Timeout in milliseconds.
 
 Skip a test. Playwright will not run the test past the `test.skip()` call.
 
-Skipped tests are not supposed to be ever run. If you intent to fix the test, use [`method: Test.fixme`] instead.
+Skipped tests are not supposed to be ever run. If you intend to fix the test, use [`method: Test.fixme`] instead.
 
 To declare a skipped test:
 * `test.skip(title, body)`
@@ -1463,7 +1501,7 @@ test('Safari-only test 2', async ({ page }) => {
 });
 ```
 
-You can also call `test.skip()` without arguments inside the test body to always mark the test as failed. We recommend using `test.skip(title, body)` instead.
+You can also call `test.skip()` without arguments inside the test body to always skip the test. However, we recommend using `test.skip(title, body)` instead.
 
 ```js
 import { test, expect } from '@playwright/test';
@@ -1500,13 +1538,13 @@ Test body that takes one or two arguments: an object with fixtures and optional 
 * since: v1.10
 - `condition` ?<[boolean]>
 
-Test is marked as "should fail" when the condition is `true`.
+Test is marked as "skipped" when the condition is `true`.
 
 ### param: Test.skip.callback
 * since: v1.10
 - `callback` ?<[function]\([Fixtures]\):[boolean]>
 
-A function that returns whether to mark as "should fail", based on test fixtures. Test or tests are marked as "should fail" when the return value is `true`.
+A function that returns whether to mark as "skipped", based on test fixtures. Test or tests are marked as "skipped" when the return value is `true`.
 
 ### param: Test.skip.description
 * since: v1.10
@@ -1641,7 +1679,7 @@ function step(target: Function, context: ClassMethodDecoratorContext) {
     const name = this.constructor.name + '.' + (context.name as string);
     return test.step(name, async () => {
       return await target.call(this, ...args);
-    });
+    }, { box: true });
   };
 }
 
@@ -1751,7 +1789,7 @@ Step name.
 
 ### param: Test.step.body
 * since: v1.10
-- `body` <[function]\(\):[Promise]<[any]>>
+- `body` <[function]\([TestStepInfo]\):[Promise]<[any]>>
 
 Step body.
 
@@ -1767,117 +1805,64 @@ Whether to box the step in the report. Defaults to `false`. When the step is box
 
 Specifies a custom location for the step to be shown in test reports and trace viewer. By default, location of the [`method: Test.step`] call is shown.
 
+## async method: Test.step.skip
+* since: v1.50
+- returns: <[void]>
+
+Mark a test step as "skip" to temporarily disable its execution, useful for steps that are currently failing and planned for a near-term fix. Playwright will not run the step. See also [`method: TestStepInfo.skip#2`].
+
+We recommend [`method: TestStepInfo.skip#1`] instead.
+
+**Usage**
+
+You can declare a skipped step, and Playwright will not run it.
+
+```js
+import { test, expect } from '@playwright/test';
+
+test('my test', async ({ page }) => {
+  // ...
+  await test.step.skip('not yet ready', async () => {
+    // ...
+  });
+});
+```
+
+### param: Test.step.skip.title
+* since: v1.50
+- `title` <[string]>
+
+Step name.
+
+### param: Test.step.skip.body
+* since: v1.50
+- `body` <[function]\(\):[Promise]<[any]>>
+
+Step body.
+
+### option: Test.step.skip.box
+* since: v1.50
+- `box` <boolean>
+
+Whether to box the step in the report. Defaults to `false`. When the step is boxed, errors thrown from the step internals point to the step call site. See below for more details.
+
+### option: Test.step.skip.location
+* since: v1.50
+- `location` <[Location]>
+
+Specifies a custom location for the step to be shown in test reports and trace viewer. By default, location of the [`method: Test.step`] call is shown.
+
+### option: Test.step.skip.timeout
+* since: v1.50
+- `timeout` <[float]>
+
+Maximum time in milliseconds for the step to finish. Defaults to `0` (no timeout).
+
 ### option: Test.step.timeout
 * since: v1.50
 - `timeout` <[float]>
 
-Maximum time in milliseconds for the step to finish. Defaults to `0` (no timeout).
-
-## async method: Test.step.fail
-* since: v1.50
-- returns: <[void]>
-
-Marks a test step as "should fail". Playwright runs this test step and ensures that it actually fails. This is useful for documentation purposes to acknowledge that some functionality is broken until it is fixed.
-
-:::note
-If the step exceeds the timeout, a [TimeoutError] is thrown. This indicates the step did not fail as expected.
-:::
-
-**Usage**
-
-You can declare a test step as failing, so that Playwright ensures it actually fails.
-
-```js
-import { test, expect } from '@playwright/test';
-
-test('my test', async ({ page }) => {
-  // ...
-  await test.step.fail('currently failing', async () => {
-    // ...
-  });
-});
-```
-
-### param: Test.step.fail.title
-* since: v1.50
-- `title` <[string]>
-
-Step name.
-
-### param: Test.step.fail.body
-* since: v1.50
-- `body` <[function]\(\):[Promise]<[any]>>
-
-Step body.
-
-### option: Test.step.fail.box
-* since: v1.50
-- `box` <boolean>
-
-Whether to box the step in the report. Defaults to `false`. When the step is boxed, errors thrown from the step internals point to the step call site. See below for more details.
-
-### option: Test.step.fail.location
-* since: v1.50
-- `location` <[Location]>
-
-Specifies a custom location for the step to be shown in test reports and trace viewer. By default, location of the [`method: Test.step`] call is shown.
-
-### option: Test.step.fail.timeout
-* since: v1.50
-- `timeout` <[float]>
-
-Maximum time in milliseconds for the step to finish. Defaults to `0` (no timeout).
-
-## async method: Test.step.fixme
-* since: v1.50
-- returns: <[void]>
-
-Mark a test step as "fixme", with the intention to fix it. Playwright will not run the step.
-
-**Usage**
-
-You can declare a test step as failing, so that Playwright ensures it actually fails.
-
-```js
-import { test, expect } from '@playwright/test';
-
-test('my test', async ({ page }) => {
-  // ...
-  await test.step.fixme('not yet ready', async () => {
-    // ...
-  });
-});
-```
-
-### param: Test.step.fixme.title
-* since: v1.50
-- `title` <[string]>
-
-Step name.
-
-### param: Test.step.fixme.body
-* since: v1.50
-- `body` <[function]\(\):[Promise]<[any]>>
-
-Step body.
-
-### option: Test.step.fixme.box
-* since: v1.50
-- `box` <boolean>
-
-Whether to box the step in the report. Defaults to `false`. When the step is boxed, errors thrown from the step internals point to the step call site. See below for more details.
-
-### option: Test.step.fixme.location
-* since: v1.50
-- `location` <[Location]>
-
-Specifies a custom location for the step to be shown in test reports and trace viewer. By default, location of the [`method: Test.step`] call is shown.
-
-### option: Test.step.fixme.timeout
-* since: v1.50
-- `timeout` <[float]>
-
-Maximum time in milliseconds for the step to finish. Defaults to `0` (no timeout).
+The maximum time, in milliseconds, allowed for the step to complete. If the step does not complete within the specified timeout, the [`method: Test.step`] method will throw a [TimeoutError]. Defaults to `0` (no timeout).
 
 ## method: Test.use
 * since: v1.10

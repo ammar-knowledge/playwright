@@ -15,12 +15,9 @@
  */
 
 import { test, expect } from './inspectorTest';
-import { roundBox } from '../../page/pageTest';
+import { roundBox } from '../../config/utils';
 
 test.describe(() => {
-  test.skip(({ mode }) => mode !== 'default');
-  test.skip(({ trace, codegenMode }) => trace === 'on' && codegenMode === 'trace-events');
-
   test('should inspect locator', async ({ openRecorder }) => {
     const { recorder } = await openRecorder();
     await recorder.setContentAndWait(`<main><button>Submit</button></main>`);

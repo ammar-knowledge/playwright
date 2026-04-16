@@ -72,7 +72,7 @@ texts = page.get_by_role("link").all_inner_texts()
 ```
 
 ```java
-String[] texts = page.getByRole(AriaRole.LINK).allInnerTexts();
+List<String> texts = page.getByRole(AriaRole.LINK).allInnerTexts();
 ```
 
 ```csharp
@@ -104,7 +104,7 @@ texts = page.get_by_role("link").all_text_contents()
 ```
 
 ```java
-String[] texts = page.getByRole(AriaRole.LINK).allTextContents();
+List<String> texts = page.getByRole(AriaRole.LINK).allTextContents();
 ```
 
 ```csharp
@@ -133,11 +133,11 @@ Locator button = page.getByRole(AriaRole.BUTTON).and(page.getByTitle("Subscribe"
 ```
 
 ```python async
-button = page.get_by_role("button").and_(page.getByTitle("Subscribe"))
+button = page.get_by_role("button").and_(page.get_by_title("Subscribe"))
 ```
 
 ```python sync
-button = page.get_by_role("button").and_(page.getByTitle("Subscribe"))
+button = page.get_by_role("button").and_(page.get_by_title("Subscribe"))
 ```
 
 ```csharp
@@ -150,12 +150,27 @@ var button = page.GetByRole(AriaRole.Button).And(page.GetByTitle("Subscribe"));
 
 Additional locator to match.
 
+## async method: Locator.ariaRef
+* since: v1.60
+* langs: js
+- returns: <[null]|[string]>
+
+Returns the aria ref (for example `e1`, `e2`) assigned to this element by the most recent aria snapshot, or `null`
+if no ref has been assigned yet. Call [`method: Locator.ariaSnapshot`] or [`method: Page.ariaSnapshot`] before this
+method to ensure a ref is available.
+
+### option: Locator.ariaRef.timeout = %%-input-timeout-%%
+* since: v1.60
+
+### option: Locator.ariaRef.timeout = %%-input-timeout-js-%%
+* since: v1.60
+
 ## async method: Locator.ariaSnapshot
 * since: v1.49
 - returns: <[string]>
 
 Captures the aria snapshot of the given element.
-Read more about [aria snapshots](../aria-snapshots.md) and [`method: LocatorAssertions.toMatchAriaSnapshot#2`] for the corresponding assertion.
+Read more about [aria snapshots](../aria-snapshots.md) and [`method: LocatorAssertions.toMatchAriaSnapshot`] for the corresponding assertion.
 
 **Usage**
 
@@ -206,11 +221,28 @@ Below is the HTML markup and the respective ARIA snapshot:
     - link "About"
 ```
 
+An AI-optimized snapshot, controlled by [`option: Locator.ariaSnapshot.mode`], is different from a default snapshot:
+1. Includes element references `[ref=e2]`.
+2. Does not wait for an element matching the locator, and throws when no elements match.
+3. Includes snapshots of `<iframe>`s inside the target.
+
+### option: Locator.ariaSnapshot.mode
+* since: v1.59
+- `mode` <[AriaSnapshotMode]<"ai"|"default">>
+
+When set to `"ai"`, returns a snapshot optimized for AI consumption. Defaults to `"default"`. See details for more information.
+
 ### option: Locator.ariaSnapshot.timeout = %%-input-timeout-%%
 * since: v1.49
 
 ### option: Locator.ariaSnapshot.timeout = %%-input-timeout-js-%%
 * since: v1.49
+
+### option: Locator.ariaSnapshot.depth
+* since: v1.59
+- `depth` <[int]>
+
+When specified, limits the depth of the snapshot.
 
 ## async method: Locator.blur
 * since: v1.28
@@ -226,6 +258,8 @@ Calls [blur](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/blur) 
 ## async method: Locator.boundingBox
 * since: v1.14
 - returns: <[null]|[Object]>
+  - alias-csharp: LocatorBoundingBoxResult
+  - alias-java: BoundingBox
   - `x` <[float]> the x coordinate of the element in pixels.
   - `y` <[float]> the y coordinate of the element in pixels.
   - `width` <[float]> the width of the element in pixels.
@@ -497,6 +531,9 @@ await page.Locator("canvas").ClickAsync(new() {
 ### option: Locator.click.trial = %%-input-trial-with-modifiers-%%
 * since: v1.14
 
+### option: Locator.click.steps = %%-input-mousemove-steps-%%
+* since: v1.57
+
 ## async method: Locator.count
 * since: v1.14
 - returns: <[int]>
@@ -580,6 +617,107 @@ When all steps combined have not finished during the specified [`option: timeout
 ### option: Locator.dblclick.trial = %%-input-trial-with-modifiers-%%
 * since: v1.14
 
+### option: Locator.dblclick.steps = %%-input-mousemove-steps-%%
+* since: v1.57
+
+## method: Locator.describe
+* since: v1.53
+- returns: <[Locator]>
+
+Describes the locator, description is used in the trace viewer and reports.
+Returns the locator pointing to the same element.
+
+**Usage**
+
+```js
+const button = page.getByTestId('btn-sub').describe('Subscribe button');
+await button.click();
+```
+
+```java
+Locator button = page.getByTestId("btn-sub").describe("Subscribe button");
+button.click();
+```
+
+```python async
+button = page.get_by_test_id("btn-sub").describe("Subscribe button")
+await button.click()
+```
+
+```python sync
+button = page.get_by_test_id("btn-sub").describe("Subscribe button")
+button.click()
+```
+
+```csharp
+var button = Page.GetByTestId("btn-sub").Describe("Subscribe button");
+await button.ClickAsync();
+```
+
+### param: Locator.describe.description
+* since: v1.53
+- `description` <[string]>
+
+Locator description.
+
+## method: Locator.description
+* since: v1.57
+* langs: python, java, csharp
+- returns: <[null]|[string]>
+
+Returns locator description previously set with [`method: Locator.describe`]. Returns `null` if no custom description has been set.
+
+**Usage**
+
+```python async
+button = page.get_by_role("button").describe("Subscribe button")
+print(button.description())  # "Subscribe button"
+
+input = page.get_by_role("textbox")
+print(input.description())  # None
+```
+
+```python sync
+button = page.get_by_role("button").describe("Subscribe button")
+print(button.description())  # "Subscribe button"
+
+input = page.get_by_role("textbox")
+print(input.description())  # None
+```
+
+```java
+Locator button = page.getByRole(AriaRole.BUTTON).describe("Subscribe button");
+System.out.println(button.description()); // "Subscribe button"
+
+Locator input = page.getByRole(AriaRole.TEXTBOX);
+System.out.println(input.description()); // null
+```
+
+```csharp
+var button = Page.GetByRole(AriaRole.Button).Describe("Subscribe button");
+Console.WriteLine(button.Description()); // "Subscribe button"
+
+var input = Page.GetByRole(AriaRole.Textbox);
+Console.WriteLine(input.Description()); // null
+```
+
+## method: Locator.description
+* since: v1.57
+* langs: js
+- returns: <[null]|[string]>
+
+Returns locator description previously set with [`method: Locator.describe`]. Returns `null` if no custom description has been set. Prefer [`method: Locator.toString`] for a human-readable representation, as it uses the description when available.
+
+**Usage**
+
+```js
+const button = page.getByRole('button').describe('Subscribe button');
+console.log(button.description()); // "Subscribe button"
+
+const input = page.getByRole('textbox');
+console.log(input.description()); // null
+```
+
 ## async method: Locator.dispatchEvent
 * since: v1.14
 
@@ -633,13 +771,11 @@ properties:
 You can also specify [JSHandle] as the property value if you want live objects to be passed into the event:
 
 ```js
-// Note you can only create DataTransfer in Chromium and Firefox
 const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
 await locator.dispatchEvent('dragstart', { dataTransfer });
 ```
 
 ```java
-// Note you can only create DataTransfer in Chromium and Firefox
 JSHandle dataTransfer = page.evaluateHandle("() => new DataTransfer()");
 Map<String, Object> arg = new HashMap<>();
 arg.put("dataTransfer", dataTransfer);
@@ -647,13 +783,11 @@ locator.dispatchEvent("dragstart", arg);
 ```
 
 ```python async
-# note you can only create data_transfer in chromium and firefox
 data_transfer = await page.evaluate_handle("new DataTransfer()")
 await locator.dispatch_event("#source", "dragstart", {"dataTransfer": data_transfer})
 ```
 
 ```python sync
-# note you can only create data_transfer in chromium and firefox
 data_transfer = page.evaluate_handle("new DataTransfer()")
 locator.dispatch_event("#source", "dragstart", {"dataTransfer": data_transfer})
 ```
@@ -785,6 +919,9 @@ Locator of the element to drag to.
 ### option: Locator.dragTo.targetPosition = %%-input-target-position-%%
 * since: v1.18
 
+### option: Locator.dragTo.steps = %%-input-drag-steps-%%
+* since: v1.57
+
 ## async method: Locator.elementHandle
 * since: v1.14
 * discouraged: Always prefer using [Locator]s and web assertions over [ElementHandle]s because latter are inherently racy.
@@ -868,29 +1005,35 @@ If [`param: expression`] throws or rejects, this method throws.
 
 **Usage**
 
+Passing argument to [`param: expression`]:
+
 ```js
-const tweets = page.locator('.tweet .retweets');
-expect(await tweets.evaluate(node => node.innerText)).toBe('10 retweets');
+const result = await page.getByTestId('myId').evaluate((element, [x, y]) => {
+  return element.textContent + ' ' + x * y;
+}, [7, 8]);
+console.log(result); // prints "myId text 56"
 ```
 
 ```java
-Locator tweets = page.locator(".tweet .retweets");
-assertEquals("10 retweets", tweets.evaluate("node => node.innerText"));
+Object result = page.getByTestId("myId").evaluate("(element, [x, y]) => {\n" +
+  "  return element.textContent + ' ' + x * y;\n" +
+  "}", Arrays.asList(7, 8));
+System.out.println(result); // prints "myId text 56"
 ```
 
 ```python async
-tweets = page.locator(".tweet .retweets")
-assert await tweets.evaluate("node => node.innerText") == "10 retweets"
+result = await page.get_by_testid("myId").evaluate("(element, [x, y]) => element.textContent + ' ' + x * y", [7, 8])
+print(result) # prints "myId text 56"
 ```
 
 ```python sync
-tweets = page.locator(".tweet .retweets")
-assert tweets.evaluate("node => node.innerText") == "10 retweets"
+result = page.get_by_testid("myId").evaluate("(element, [x, y]) => element.textContent + ' ' + x * y", [7, 8])
+print(result) # prints "myId text 56"
 ```
 
 ```csharp
-var tweets = page.Locator(".tweet .retweets");
-Assert.AreEqual("10 retweets", await tweets.EvaluateAsync("node => node.innerText"));
+var result = await page.GetByTestId("myId").EvaluateAsync<string>("(element, [x, y]) => element.textContent + ' ' + x * y)", new[] { 7, 8 });
+Console.WriteLine(result); // prints "myId text 56"
 ```
 
 ### param: Locator.evaluate.expression = %%-evaluate-expression-%%
@@ -905,11 +1048,19 @@ Assert.AreEqual("10 retweets", await tweets.EvaluateAsync("node => node.innerTex
 
 Optional argument to pass to [`param: expression`].
 
-### option: Locator.evaluate.timeout = %%-input-timeout-%%
+### option: Locator.evaluate.timeout
 * since: v1.14
+* langs: python, java, csharp
+- `timeout` <[float]>
 
-### option: Locator.evaluate.timeout = %%-input-timeout-js-%%
+Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+
+### option: Locator.evaluate.timeout
 * since: v1.14
+* langs: js
+- `timeout` <[float]>
+
+Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
 
 ## async method: Locator.evaluateAll
 * since: v1.14
@@ -994,11 +1145,19 @@ See [`method: Page.evaluateHandle`] for more details.
 
 Optional argument to pass to [`param: expression`].
 
-### option: Locator.evaluateHandle.timeout = %%-input-timeout-%%
+### option: Locator.evaluateHandle.timeout
 * since: v1.14
+* langs: python, java, csharp
+- `timeout` <[float]>
 
-### option: Locator.evaluateHandle.timeout = %%-input-timeout-js-%%
+Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+
+### option: Locator.evaluateHandle.timeout
 * since: v1.14
+* langs: js
+- `timeout` <[float]>
+
+Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
 
 ## async method: Locator.fill
 * since: v1.14
@@ -1118,6 +1277,9 @@ await rowLocator
 
 ### option: Locator.filter.hasNotText = %%-locator-option-has-not-text-%%
 * since: v1.33
+
+### option: Locator.filter.visible = %%-locator-option-visible-%%
+* since: v1.51
 
 ## method: Locator.first
 * since: v1.14
@@ -1268,10 +1430,35 @@ Attribute name to get the value for.
 
 ### option: Locator.getByTitle.exact = %%-locator-get-by-text-exact-%%
 
+## async method: Locator.hideHighlight
+* since: v1.60
+
+Hide element highlight added with Highlight the corresponding element(s) on the screen. Useful for debugging, don't commit the code that uses [`method: Locator.highlight`].
+
 ## async method: Locator.highlight
 * since: v1.20
+- returns: <[Disposable]>
 
 Highlight the corresponding element(s) on the screen. Useful for debugging, don't commit the code that uses [`method: Locator.highlight`].
+
+### option: Locator.highlight.style
+* since: v1.60
+* langs: js
+- `style` <[string]|[Object]<[string], [any]>>
+
+Inline CSS applied to the highlight overlay, e.g.
+
+```js
+await locator.highlight('outline: 2px dashed red');
+await locator.highlight({ color: 'red' });
+```
+
+### option: Locator.highlight.style
+* since: v1.60
+* langs: java, python, csharp
+- `style` <[string]>
+
+Additional inline CSS applied to the highlight overlay, e.g. `"outline: 2px dashed red"`.
 
 ## async method: Locator.hover
 * since: v1.14
@@ -1675,6 +1862,12 @@ var banana = await page.GetByRole(AriaRole.Listitem).Last(1);
 ### option: Locator.locator.hasNotText = %%-locator-option-has-not-text-%%
 * since: v1.33
 
+## async method: Locator.normalize
+* since: v1.59
+- returns: <[Locator]>
+
+Returns a new locator that uses best practices for referencing the matched element, prioritizing test ids,
+aria roles, and other user-facing attributes over CSS selectors. This is useful for converting implementation-detail selectors into more resilient, human-readable locators.
 
 ## method: Locator.nth
 * since: v1.14
@@ -2064,9 +2257,9 @@ Triggers a `change` and `input` event once all the provided options have been se
 
 ```html
 <select multiple>
-  <option value="red">Red</div>
-  <option value="green">Green</div>
-  <option value="blue">Blue</div>
+  <option value="red">Red</option>
+  <option value="green">Green</option>
+  <option value="blue">Blue</option>
 </select>
 ```
 
@@ -2358,10 +2551,11 @@ This method expects [Locator] to point to an
 ### option: Locator.setInputFiles.timeout = %%-input-timeout-js-%%
 * since: v1.14
 
+
 ## async method: Locator.tap
 * since: v1.14
 
-Perform a tap gesture on the element matching the locator.
+Perform a tap gesture on the element matching the locator. For examples of emulating other gestures by manually dispatching touch events, see the [emulating legacy touch events](../touch-events.md) page.
 
 **Details**
 
@@ -2415,6 +2609,13 @@ If you need to assert text on the page, prefer [`method: LocatorAssertions.toHav
 
 ### option: Locator.textContent.timeout = %%-input-timeout-js-%%
 * since: v1.14
+
+## method: Locator.toString
+* since: v1.57
+* langs: js
+- returns: <[string]>
+
+Returns a human-readable representation of the locator, using the [`method: Locator.description`] if one exists; otherwise, it generates a string based on the locator's selector.
 
 ## async method: Locator.type
 * since: v1.14

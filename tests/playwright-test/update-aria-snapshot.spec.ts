@@ -34,7 +34,7 @@ test('should update snapshot with the update-snapshots flag with multiple projec
       import { test, expect } from '@playwright/test';
       test('test', async ({ page }) => {
         await page.setContent(\`<h1>hello</h1><h2>bye</h2>\`);
-        await expect(page.locator('body')).toMatchAriaSnapshot(\`
+        await expect(page).toMatchAriaSnapshot(\`
           - heading "world"
         \`);
       });
@@ -50,7 +50,7 @@ test('should update snapshot with the update-snapshots flag with multiple projec
 @@ -3,7 +3,8 @@
        test('test', async ({ page }) => {
          await page.setContent(\`<h1>hello</h1><h2>bye</h2>\`);
-         await expect(page.locator('body')).toMatchAriaSnapshot(\`
+         await expect(page).toMatchAriaSnapshot(\`
 -          - heading "world"
 +          - heading "hello" [level=1]
 +          - heading "bye" [level=2]
@@ -79,12 +79,13 @@ test('should update missing snapshots', async ({ runInlineTest }, testInfo) => {
       import { test, expect } from '@playwright/test';
       test('test', async ({ page }) => {
         await page.setContent(\`<h1>hello</h1>\`);
-        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`);
+        await expect(page).toMatchAriaSnapshot(\`\`);
       });
     `
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('Error: A snapshot is not provided, generating new baseline.');
 
   expect(stripAnsi(result.output).replace(/\\/g, '/')).toContain(`New baselines created for:
 
@@ -102,8 +103,8 @@ test('should update missing snapshots', async ({ runInlineTest }, testInfo) => {
        import { test, expect } from '@playwright/test';
        test('test', async ({ page }) => {
          await page.setContent(\`<h1>hello</h1>\`);
--        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`);
-+        await expect(page.locator('body')).toMatchAriaSnapshot(\`
+-        await expect(page).toMatchAriaSnapshot(\`\`);
++        await expect(page).toMatchAriaSnapshot(\`
 +          - heading "hello" [level=1]
 +        \`);
        });
@@ -123,13 +124,13 @@ test('should update multiple missing snapshots', async ({ runInlineTest }, testI
       import { test, expect } from '@playwright/test';
       test('test', async ({ page }) => {
         await page.setContent(\`<h1>hello</h1>\`);
-        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`);
-        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`);
+        await expect(page).toMatchAriaSnapshot(\`\`);
+        await expect(page).toMatchAriaSnapshot(\`\`);
       });
     `
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(1);
 
   expect(stripAnsi(result.output).replace(/\\/g, '/')).toContain(`New baselines created for:
 
@@ -147,12 +148,12 @@ test('should update multiple missing snapshots', async ({ runInlineTest }, testI
        import { test, expect } from '@playwright/test';
        test('test', async ({ page }) => {
          await page.setContent(\`<h1>hello</h1>\`);
--        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`);
--        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`);
-+        await expect(page.locator('body')).toMatchAriaSnapshot(\`
+-        await expect(page).toMatchAriaSnapshot(\`\`);
+-        await expect(page).toMatchAriaSnapshot(\`\`);
++        await expect(page).toMatchAriaSnapshot(\`
 +          - heading "hello" [level=1]
 +        \`);
-+        await expect(page.locator('body')).toMatchAriaSnapshot(\`
++        await expect(page).toMatchAriaSnapshot(\`
 +          - heading "hello" [level=1]
 +        \`);
        });
@@ -188,7 +189,7 @@ test('should generate baseline with regex', async ({ runInlineTest }, testInfo) 
     `
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(1);
   const patchPath = testInfo.outputPath('test-results/rebaselines.patch');
   const data = fs.readFileSync(patchPath, 'utf-8');
   expect(trimPatch(data)).toBe(`diff --git a/a.spec.ts b/a.spec.ts
@@ -249,13 +250,13 @@ test('should generate baseline with special characters', async ({ runInlineTest 
     `
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(1);
   const patchPath = testInfo.outputPath('test-results/rebaselines.patch');
   const data = fs.readFileSync(patchPath, 'utf-8');
   expect(trimPatch(data)).toBe(`diff --git a/a.spec.ts b/a.spec.ts
 --- a/a.spec.ts
 +++ b/a.spec.ts
-@@ -17,6 +17,27 @@
+@@ -17,6 +17,30 @@
            <li>Item: 1</li>
            <li>Item {a: b}</li>
          </ul>\`);
@@ -264,11 +265,14 @@ test('should generate baseline with special characters', async ({ runInlineTest 
 +          - list:
 +            - group:
 +              - text: "one:"
-+              - link "link1"
++              - link "link1":
++                - /url: "#"
 +              - text: "\\\\\"two"
-+              - link "link2"
++              - link "link2":
++                - /url: "#"
 +              - text: "'three"
-+              - link "link3"
++              - link "link3":
++                - /url: "#"
 +              - text: "\\\`four"
 +            - heading "heading \\\\"name\\\\" [level=1]" [level=1]
 +            - 'button "Click: me"'
@@ -314,7 +318,7 @@ test('should update missing snapshots in tsx', async ({ runInlineTest }, testInf
     `,
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(1);
   const patchPath = testInfo.outputPath('test-results/rebaselines.patch');
   const data = fs.readFileSync(patchPath, 'utf-8');
   expect(trimPatch(data)).toBe(`diff --git a/src/button.test.tsx b/src/button.test.tsx
@@ -370,7 +374,7 @@ test('should update multiple files', async ({ runInlineTest }, testInfo) => {
     `,
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(1);
 
   expect(stripAnsi(result.output).replace(/\\/g, '/')).toContain(`New baselines created for:
 
@@ -430,7 +434,7 @@ test('should generate baseline for input values', async ({ runInlineTest }, test
     `
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(1);
   const patchPath = testInfo.outputPath('test-results/rebaselines.patch');
   const data = fs.readFileSync(patchPath, 'utf-8');
   expect(trimPatch(data)).toBe(`diff --git a/a.spec.ts b/a.spec.ts
@@ -447,6 +451,50 @@ test('should generate baseline for input values', async ({ runInlineTest }, test
        });
 
 \\ No newline at end of file
+`);
+
+  execSync(`patch -p1 < ${patchPath}`, { cwd: testInfo.outputPath() });
+  const result2 = await runInlineTest({});
+  expect(result2.exitCode).toBe(0);
+});
+
+test('should update when options are specified', async ({ runInlineTest }, testInfo) => {
+  const result = await runInlineTest({
+    '.git/marker': '',
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('test', async ({ page }) => {
+        await page.setContent(\`<input value="hello world">\`);
+        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`, { timeout: 2500 });
+        await expect(page.locator('body')).toMatchAriaSnapshot('',
+          {
+            timeout: 2500
+          });
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(1);
+  const patchPath = testInfo.outputPath('test-results/rebaselines.patch');
+  const data = fs.readFileSync(patchPath, 'utf-8');
+  expect(trimPatch(data)).toBe(`diff --git a/a.spec.ts b/a.spec.ts
+--- a/a.spec.ts
++++ b/a.spec.ts
+@@ -2,8 +2,12 @@
+       import { test, expect } from '@playwright/test';
+       test('test', async ({ page }) => {
+         await page.setContent(\`<input value="hello world">\`);
+-        await expect(page.locator('body')).toMatchAriaSnapshot(\`\`, { timeout: 2500 });
+-        await expect(page.locator('body')).toMatchAriaSnapshot('',
++        await expect(page.locator('body')).toMatchAriaSnapshot(\`
++          - textbox: hello world
++        \`, { timeout: 2500 });
++        await expect(page.locator('body')).toMatchAriaSnapshot(\`
++          - textbox: hello world
++        \`,
+           {
+             timeout: 2500
+           });
 `);
 
   execSync(`patch -p1 < ${patchPath}`, { cwd: testInfo.outputPath() });
@@ -471,7 +519,7 @@ test('should not update snapshots when locator did not match', async ({ runInlin
   expect(fs.existsSync(patchPath)).toBe(false);
   expect(result.output).not.toContain('New baselines created');
   expect(result.output).toContain('Expected: "- heading"');
-  expect(result.output).toContain('Received: <element not found>');
+  expect(result.output).toContain('Error: element(s) not found');
 });
 
 test.describe('update-snapshots none', () => {
@@ -501,7 +549,7 @@ test.describe('update-snapshots all', () => {
         import { test, expect } from '@playwright/test';
         test('test', async ({ page }) => {
           await page.setContent(\`<h1>hello</h1><h1>world</h1>\`);
-          await expect(page.locator('body')).toMatchAriaSnapshot(\`
+          await expect(page).toMatchAriaSnapshot(\`
             - heading "hello"
           \`);
         });
@@ -517,7 +565,7 @@ test.describe('update-snapshots all', () => {
 @@ -3,7 +3,8 @@
          test('test', async ({ page }) => {
            await page.setContent(\`<h1>hello</h1><h1>world</h1>\`);
-           await expect(page.locator('body')).toMatchAriaSnapshot(\`
+           await expect(page).toMatchAriaSnapshot(\`
 -            - heading "hello"
 +            - heading "hello" [level=1]
 +            - heading "world" [level=1]
@@ -616,5 +664,46 @@ test.describe('update-source-method', () => {
 
   a.spec.ts
 `);
+  });
+
+  test('should overwrite source when specified in the config', async ({ runInlineTest }, testInfo) => {
+    const result = await runInlineTest({
+      '.git/marker': '',
+      'playwright.config.ts': `
+        export default { updateSourceMethod: 'overwrite' };
+      `,
+      'a.spec.ts': `
+        import { test, expect } from '@playwright/test';
+        test('test', async ({ page }) => {
+          await page.setContent(\`<h1>hello</h1>\`);
+          await expect(page.locator('body')).toMatchAriaSnapshot(\`
+            - heading "world"
+          \`);
+        });
+      `
+    }, { 'update-snapshots': 'all' });
+
+    expect(result.exitCode).toBe(0);
+    const patchPath = testInfo.outputPath('test-results/rebaselines.patch');
+    expect(fs.existsSync(patchPath)).toBeFalsy();
+
+    const data = fs.readFileSync(testInfo.outputPath('a.spec.ts'), 'utf-8');
+    expect(data).toBe(`
+        import { test, expect } from '@playwright/test';
+        test('test', async ({ page }) => {
+          await page.setContent(\`<h1>hello</h1>\`);
+          await expect(page.locator('body')).toMatchAriaSnapshot(\`
+            - heading "hello" [level=1]
+          \`);
+        });
+      `);
+
+    expect(stripAnsi(result.output).replace(/\\/g, '/')).toContain(`New baselines created for:
+
+  a.spec.ts
+`);
+
+    const result2 = await runInlineTest({});
+    expect(result2.exitCode).toBe(0);
   });
 });

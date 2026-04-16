@@ -56,9 +56,10 @@ class ExpectationReporter implements Reporter {
       const outcome = getOutcome(test);
       // Strip root and project names.
       const key = test.titlePath().slice(2).join(' › ');
-      if (!expectations.has(key) || expectations.get(key) === 'unknown' ||
-          (expectations.get(key) === 'fail' && outcome === 'pass'))
+      if (outcome === 'timeout')
         expectations.set(key, outcome);
+      else if (expectations.has(key) && test.outcome() !== 'skipped')
+        expectations.delete(key); // Remove tests that no longer timeout.
     }
     const keys = Array.from(expectations.keys());
     keys.sort();

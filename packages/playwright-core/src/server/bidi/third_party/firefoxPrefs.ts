@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Copied from upstream: https://github.com/puppeteer/puppeteer/blob/main/packages/browsers/src/browser-data/firefox.ts
+
 import fs from 'fs';
 import path from 'path';
 
-/* eslint-disable curly, indent */
+/* eslint-disable curly */
 
 interface ProfileOptions {
   preferences: Record<string, unknown>;
@@ -54,10 +56,23 @@ function defaultProfilePreferences(
     // console
     // https://bugzilla.mozilla.org/show_bug.cgi?id=1543115
     'browser.dom.window.dump.enabled': true,
+
+    // Make sure newtab weather doesn't hit the network to retrieve weather data.
+    'browser.newtabpage.activity-stream.discoverystream.region-weather-config': '',
+
+    // Make sure newtab wallpapers don't hit the network to retrieve wallpaper data.
+    'browser.newtabpage.activity-stream.newtabWallpapers.enabled': false,
+    'browser.newtabpage.activity-stream.newtabWallpapers.v2.enabled': false,
+
+    // Make sure Topsites doesn't hit the network to retrieve sponsored tiles.
+    'browser.newtabpage.activity-stream.showSponsoredTopSites': false,
+
     // Disable topstories
     'browser.newtabpage.activity-stream.feeds.system.topstories': false,
+
     // Always display a blank page
     'browser.newtabpage.enabled': false,
+
     // Background thumbnails in particular cause grief: and disabling
     // thumbnails in general cannot hurt
     'browser.pagethumbnails.capturing_disabled': true,
@@ -110,6 +125,8 @@ function defaultProfilePreferences(
     'datareporting.healthreport.service.enabled': false,
     'datareporting.healthreport.service.firstRun': false,
     'datareporting.healthreport.uploadEnabled': false,
+    'datareporting.usage.uploadEnabled': false,
+    'telemetry.fog.test.localhost_port': -1,
 
     // Do not show datareporting policy notifications which can interfere with tests
     'datareporting.policy.dataSubmissionEnabled': false,
@@ -132,6 +149,15 @@ function defaultProfilePreferences(
     // Disable slow script dialogues
     'dom.max_chrome_script_run_time': 0,
     'dom.max_script_run_time': 0,
+
+    // Disable background timer throttling to allow tests to run in parallel
+    // without a decrease in performance.
+    'dom.min_background_timeout_value': 0,
+    'dom.min_background_timeout_value_without_budget_throttling': 0,
+    'dom.timeout.enable_budget_timer_throttling': false,
+
+    // Disable HTTPS-First upgrades
+    'dom.security.https_first': false,
 
     // Only load extensions from the application and user profile
     // AddonManager.SCOPE_PROFILE + AddonManager.SCOPE_APPLICATION
@@ -175,11 +201,17 @@ function defaultProfilePreferences(
     // Show chrome errors and warnings in the error console
     'javascript.options.showInConsole': true,
 
+    // Do not throttle rendering (requestAnimationFrame) in background tabs
+    'layout.testing.top-level-always-active': true,
+
     // Disable download and usage of OpenH264: and Widevine plugins
     'media.gmp-manager.updateEnabled': false,
 
     // Disable the GFX sanity window
     'media.sanity-test.disabled': true,
+
+    // Disable connectivity service pings
+    'network.connectivity-service.enabled': false,
 
     // Disable experimental feature that is only available in Nightly
     'network.cookie.sameSite.laxByDefault': false,
@@ -216,9 +248,6 @@ function defaultProfilePreferences(
     // Do not wait for the notification button security delay
     'security.notification_enable_delay': 0,
 
-    // Ensure blocklist updates do not hit the network
-    'services.settings.server': `http://${server}/dummy/blocklist/`,
-
     // Do not automatically fill sign-in forms with known usernames and
     // passwords
     'signon.autofillForms': false,
@@ -238,6 +267,9 @@ function defaultProfilePreferences(
 
     // Prevent starting into safe mode after application crashes
     'toolkit.startup.max_resumed_crashes': -1,
+
+    // Enable TestUtils
+    'dom.testing.testutils.enabled': true,
   };
 
   return Object.assign(defaultPrefs, extraPrefs);
@@ -264,14 +296,14 @@ async function writePreferences(options: ProfileOptions): Promise<void> {
     fs.promises.writeFile(path.join(options.path, 'user.js'), lines.join('\n')),
     // Create a backup of the preferences file if it already exitsts.
     fs.promises.access(prefsPath, fs.constants.F_OK).then(
-      async () => {
-        await fs.promises.copyFile(
-          prefsPath,
-          path.join(options.path, 'prefs.js.playwright')
-        );
-      },
-      // Swallow only if file does not exist
-      () => {}
+        async () => {
+          await fs.promises.copyFile(
+              prefsPath,
+              path.join(options.path, 'prefs.js.playwright')
+          );
+        },
+        // Swallow only if file does not exist
+        () => {}
     ),
   ]);
   for (const command of result) {

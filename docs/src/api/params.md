@@ -97,11 +97,22 @@ A selector to search for an element to drop onto. If there are multiple elements
 
 ## input-position
 - `position` <[Object]>
+  - alias-java: Position
   - `x` <[float]>
   - `y` <[float]>
 
 A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
 element.
+
+## input-mousemove-steps
+- `steps` <[int]>
+
+Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
+
+## input-drag-steps
+- `steps` <[int]>
+
+Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between the `mousedown` and `mouseup` of the drag. When set to 1, emits a single `mousemove` event at the destination location.
 
 ## input-modifiers
 - `modifiers` <[Array]<[KeyboardModifier]<"Alt"|"Control"|"ControlOrMeta"|"Meta"|"Shift">>>
@@ -117,6 +128,8 @@ Defaults to `left`.
 
 ## input-files
 - `files` <[path]|[Array]<[path]>|[Object]|[Array]<[Object]>>
+  - alias-csharp: FilePayload
+  - alias-java: FilePayload
   - `name` <[string]> File name
   - `mimeType` <[string]> File type
   - `buffer` <[Buffer]> File content
@@ -143,6 +156,7 @@ When set, this method only performs the [actionability](../actionability.md) che
 
 ## input-source-position
 - `sourcePosition` <[Object]>
+  - alias-java: Position
   - `x` <[float]>
   - `y` <[float]>
 
@@ -150,6 +164,7 @@ Clicks on the source element at this point relative to the top-left corner of th
 
 ## input-target-position
 - `targetPosition` <[Object]>
+  - alias-java: Position
   - `x` <[float]>
   - `y` <[float]>
 
@@ -225,6 +240,7 @@ Dangerous option; use with care. Defaults to `false`.
 
 ## browser-option-proxy
 - `proxy` <[Object]>
+  - alias-java: Proxy
   - `server` <[string]> Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
     `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP
     proxy.
@@ -235,14 +251,18 @@ Dangerous option; use with care. Defaults to `false`.
 
 Network proxy settings.
 
+## js-browser-option-env
+* langs: js
+- `env` <[Object]<[string], [string]|[undefined]>>
+
 ## csharp-java-browser-option-env
 * langs: csharp, java
 - `env` <[Object]<[string], [string]>>
 
 Specify environment variables that will be visible to the browser. Defaults to `process.env`.
 
-## js-python-browser-option-env
-* langs: js, python
+## python-browser-option-env
+* langs: python
 - `env` <[Object]<[string], [string]|[float]|[boolean]>>
 
 Specify environment variables that will be visible to the browser. Defaults to `process.env`.
@@ -259,9 +279,9 @@ Specify environment variables that will be visible to the browser. Defaults to `
     - `httpOnly` <[boolean]>
     - `secure` <[boolean]>
     - `sameSite` <[SameSiteAttribute]<"Strict"|"Lax"|"None">> sameSite flag
-  - `origins` <[Array]<[Object]>> localStorage to set for context
+  - `origins` <[Array]<[Object]>>
     - `origin` <[string]>
-    - `localStorage` <[Array]<[Object]>>
+    - `localStorage` <[Array]<[Object]>> localStorage to set for context
       - `name` <[string]>
       - `value` <[string]>
 
@@ -317,6 +337,7 @@ When using [`method: Page.goto`], [`method: Page.route`], [`method: Page.waitFor
 * langs: js, java
   - alias-java: viewportSize
 - `viewport` <[null]|[Object]>
+  - alias-java: ViewportSize
   - `width` <[int]> page width in pixels.
   - `height` <[int]> page height in pixels.
 
@@ -350,11 +371,44 @@ It makes the execution of the tests non-deterministic.
   - alias-java: screenSize
   - alias-csharp: screenSize
 - `screen` <[Object]>
+  - alias-java: ScreenSize
   - `width` <[int]> page width in pixels.
   - `height` <[int]> page height in pixels.
 
 Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
 [`option: viewport`] is set.
+
+## page-agent-cache-key
+* since: v1.58
+- `cacheKey` <[string]>
+
+All the agentic actions are converted to the Playwright calls and are cached.
+By default, they are cached globally with the `task` as a key. This option allows controlling the cache key explicitly.
+
+## page-agent-max-tokens
+* since: v1.58
+- `maxTokens` <[int]>
+
+Maximum number of tokens to consume. The agentic loop will stop after input + output tokens exceed this value.
+Defaults to context-wide value specified in `agent` property.
+
+## page-agent-max-actions
+* since: v1.58
+- `maxActions` <[int]>
+
+Maximum number of agentic actions to generate, defaults to context-wide value specified in `agent` property.
+
+## page-agent-max-action-retries
+* since: v1.58
+- `maxActionRetries` <[int]>
+
+Maximum number of retries when generating each action, defaults to context-wide value specified in `agent` property.
+
+## page-agent-call-options-v1.58
+- %%-page-agent-cache-key-%%
+- %%-page-agent-max-tokens-%%
+- %%-page-agent-max-actions-%%
+- %%-page-agent-max-action-retries-%%
 
 ## fetch-param-url
 - `url` <[string]>
@@ -548,6 +602,7 @@ Does not enforce fixed viewport, allows resizing window in the headed mode.
 
 ## context-option-clientCertificates
 - `clientCertificates` <[Array]<[Object]>>
+  - alias-java: ClientCertificate
   - `origin` <[string]> Exact origin that the certificate is valid for. Origin includes `https` protocol, a hostname and optionally a port.
   - `certPath` ?<[path]> Path to the file with the certificate in PEM format.
   - `cert` ?<[Buffer]> Direct value of the certificate in PEM format.
@@ -562,6 +617,8 @@ TLS Client Authentication allows the server to request a client certificate and 
 **Details**
 
 An array of client certificates to be used. Each certificate object must have either both `certPath` and `keyPath`, a single `pfxPath`, or their corresponding direct value equivalents (`cert` and `key`, or `pfx`). Optionally, `passphrase` property should be provided if the certificate is encrypted. The `origin` property should be provided with an exact match to the request origin that the certificate is valid for.
+
+Client certificate authentication is only active when at least one client certificate is provided. If you want to reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that does not match any of the domains you plan to visit.
 
 :::note
 When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it work by replacing `localhost` with `local.playwright`.
@@ -600,6 +657,7 @@ for a list of supported timezone IDs. Defaults to the system timezone.
 
 ## context-option-geolocation
 - `geolocation` <[Object]>
+  - alias-java: Geolocation
   - `latitude` <[float]> Latitude between -90 and 90.
   - `longitude` <[float]> Longitude between -180 and 180.
   - `accuracy` ?<[float]> Non-negative accuracy value. Defaults to `0`.
@@ -627,6 +685,7 @@ Whether to emulate network being offline. Defaults to `false`. Learn more about 
 
 ## context-option-httpcredentials
 - `httpCredentials` <[Object]>
+  - alias-java: HttpCredentials
   - `username` <[string]>
   - `password` <[string]>
   - `origin` ?<[string]> Restrain sending http credentials on specific origin (scheme://host:port).
@@ -673,23 +732,24 @@ Emulates `'forced-colors'` media feature, supported values are `'active'`, `'non
 
 Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See [`method: Page.emulateMedia`] for more details. Passing `'null'` resets emulation to system defaults. Defaults to `'none'`.
 
+## context-option-contrast
+* langs: js, java
+- `contrast` <null|[Contrast]<"no-preference"|"more">>
+
+Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See [`method: Page.emulateMedia`] for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+
+## context-option-contrast-csharp-python
+* langs: csharp, python
+- `contrast` <[Contrast]<"no-preference"|"more"|"null">>
+
+Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See [`method: Page.emulateMedia`] for more details. Passing `'null'` resets emulation to system defaults. Defaults to `'no-preference'`.
+
 ## context-option-logger
 * langs: js
+* deprecated: The logs received by the logger are incomplete. Please use tracing instead.
 - `logger` <[Logger]>
 
 Logger sink for Playwright logging.
-
-## context-option-videospath
-* langs: js
-* deprecated: Use [`option: recordVideo`] instead.
-- `videosPath` <[path]>
-
-## context-option-videosize
-* langs: js
-* deprecated: Use [`option: recordVideo`] instead.
-- `videoSize` <[Object]>
-  - `width` <[int]> Video frame width.
-  - `height` <[int]> Video frame height.
 
 ## context-option-recordhar
 * langs: js
@@ -743,12 +803,18 @@ When set to `minimal`, only record information necessary for routing from HAR. T
 ## context-option-recordvideo
 * langs: js
 - `recordVideo` <[Object]>
-  - `dir` <[path]> Path to the directory to put videos into.
+  - `dir` ?<[path]> Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see [`method: BrowserType.launch`] options).
   - `size` ?<[Object]> Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport`
     scaled down to fit into 800x800. If `viewport` is not configured explicitly the video size defaults to 800x450.
     Actual picture of each page will be scaled down if necessary to fit the specified size.
+    - alias-csharp: RecordVideoSize
     - `width` <[int]> Video frame width.
     - `height` <[int]> Video frame height.
+  - `showActions` ?<[Object]> If specified, enables visual annotations on interacted elements during video recording.
+    - alias-csharp: ShowActionsOptions
+    - `duration` ?<[float]> How long each annotation is displayed in milliseconds. Defaults to `500`.
+    - `position` ?<[AnnotatePosition]<"top-left"|"top"|"top-right"|"bottom-left"|"bottom"|"bottom-right">> Position of the action title overlay. Defaults to `"top-right"`.
+    - `fontSize` ?<[int]> Font size of the action title in pixels. Defaults to `24`.
 
 Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
 sure to await [`method: BrowserContext.close`] for videos to be saved.
@@ -765,6 +831,7 @@ not recorded. Make sure to call [`method: BrowserContext.close`] for videos to b
 * langs: csharp, java, python
   - alias-python: record_video_size
 - `recordVideoSize` <[Object]>
+  - alias-java: RecordVideoSize
   - `width` <[int]> Video frame width.
   - `height` <[int]> Video frame height.
 
@@ -774,6 +841,7 @@ Actual picture of each page will be scaled down if necessary to fit the specifie
 
 ## context-option-proxy
 - `proxy` <[Object]>
+  - alias-java: Proxy
   - `server` <[string]> Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
     `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP proxy.
   - `bypass` ?<[string]> Optional comma-separated domains to bypass proxy, for example `".com, chromium.org, .domain.com"`.
@@ -821,6 +889,7 @@ Specifies whether to wait for already running handlers and what to do if they th
 ## select-options-values
 * langs: java, js, csharp
 - `values` <[null]|[string]|[ElementHandle]|[Array]<[string]>|[Object]|[Array]<[ElementHandle]>|[Array]<[Object]>>
+  - alias-java: SelectOption
   - `value` ?<[string]> Matches by `option.value`. Optional.
   - `label` ?<[string]> Matches by `option.label`. Optional.
   - `index` ?<[int]> Matches by the index. Optional.
@@ -829,10 +898,19 @@ Options to select. If the `<select>` has the `multiple` attribute, all matching 
 first option matching one of the passed options is selected. String values are matching both values and labels. Option
 is considered matching if all specified properties match.
 
-## wait-for-navigation-url
+## js-wait-for-navigation-url
+* langs: js
+- `url` <[string]|[RegExp]|[URLPattern]|[function]\([URL]\):[boolean]>
+
+A glob pattern, regex pattern, URL pattern, or predicate receiving [URL] to match while waiting for the navigation. Note that if
+the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
+equal to the string.
+
+## python-csharp-java-wait-for-navigation-url
+* langs: python, csharp, java
 - `url` <[string]|[RegExp]|[function]\([URL]\):[boolean]>
 
-A glob pattern, regex pattern or predicate receiving [URL] to match while waiting for the navigation. Note that if
+A glob pattern, regex pattern, or predicate receiving [URL] to match while waiting for the navigation. Note that if
 the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
 equal to the string.
 
@@ -973,9 +1051,9 @@ between the same pixel in compared images, between zero (strict) and one (lax), 
 - %%-context-option-reducedMotion-csharp-python-%%
 - %%-context-option-forcedColors-%%
 - %%-context-option-forcedColors-csharp-python-%%
+- %%-context-option-contrast-%%
+- %%-context-option-contrast-csharp-python-%%
 - %%-context-option-logger-%%
-- %%-context-option-videospath-%%
-- %%-context-option-videosize-%%
 - %%-context-option-recordhar-%%
 - %%-context-option-recordhar-path-%%
 - %%-context-option-recordhar-omit-content-%%
@@ -1047,8 +1125,7 @@ Close the browser process on SIGHUP. Defaults to `true`.
 
 Whether to run browser in headless mode. More details for
 [Chromium](https://developers.google.com/web/updates/2017/04/headless-chrome) and
-[Firefox](https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Headless_mode). Defaults to `true` unless the
-[`option: BrowserType.launch.devtools`] option is `true`.
+[Firefox](https://hacks.mozilla.org/2017/12/using-headless-mode-in-firefox/). Defaults to `true`.
 
 ## js-python-browser-option-firefoxuserprefs
 * langs: js, python
@@ -1057,6 +1134,8 @@ Whether to run browser in headless mode. More details for
 Firefox user preferences. Learn more about the Firefox user preferences at
 [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
 
+You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
+
 ## csharp-java-browser-option-firefoxuserprefs
 * langs: csharp, java
 - `firefoxUserPrefs` <[Object]<[string], [any]>>
@@ -1064,8 +1143,11 @@ Firefox user preferences. Learn more about the Firefox user preferences at
 Firefox user preferences. Learn more about the Firefox user preferences at
 [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
 
+You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
+
 ## browser-option-logger
 * langs: js
+* deprecated: The logs received by the logger are incomplete. Please use tracing instead.
 - `logger` <[Logger]>
 
 Logger sink for Playwright logging.
@@ -1076,17 +1158,15 @@ Logger sink for Playwright logging.
 Maximum time in milliseconds to wait for the browser instance to start. Defaults to `30000` (30 seconds). Pass `0` to
 disable timeout.
 
+## browser-option-artifactsdir
+- `artifactsDir` <[path]>
+
+If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the browser closes.
+
 ## browser-option-tracesdir
 - `tracesDir` <[path]>
 
 If specified, traces are saved into this directory.
-
-## browser-option-devtools
-* deprecated: Use [debugging tools](../debug.md) instead.
-- `devtools` <[boolean]>
-
-**Chromium-only** Whether to auto-open a Developer Tools panel for each tab. If this option is `true`, the
-[`option: headless`] option will be set `false`.
 
 ## browser-option-slowmo
 - `slowMo` <[float]>
@@ -1095,12 +1175,13 @@ Slows down Playwright operations by the specified amount of milliseconds. Useful
 
 ## shared-browser-options-list-v1.8
 - %%-browser-option-args-%%
+- %%-browser-option-artifactsdir-%%
 - %%-browser-option-channel-%%
 - %%-browser-option-chromiumsandbox-%%
-- %%-browser-option-devtools-%%
 - %%-browser-option-downloadspath-%%
 - %%-csharp-java-browser-option-env-%%
-- %%-js-python-browser-option-env-%%
+- %%-js-browser-option-env-%%
+- %%-python-browser-option-env-%%
 - %%-browser-option-executablepath-%%
 - %%-browser-option-handlesigint-%%
 - %%-browser-option-handlesigterm-%%
@@ -1139,6 +1220,11 @@ Note that outer and inner locators must belong to the same frame. Inner locator 
 - `hasNotText` <[string]|[RegExp]>
 
 Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element. When passed a [string], matching is case-insensitive and searches for a substring.
+
+## locator-option-visible
+- `visible` <[boolean]>
+
+Only matches visible or invisible elements.
 
 ## locator-options-list-v1.14
 - %%-locator-option-has-text-%%
@@ -1190,6 +1276,7 @@ Specify screenshot type, defaults to `png`.
 
 Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
 a pink box `#FF00FF` (customized by [`option: maskColor`]) that completely covers its bounding box.
+The mask is also applied to invisible elements, see [Matching only visible elements](../locators.md#matching-only-visible-elements) to disable that.
 
 ## screenshot-option-mask-color
 * since: v1.35
@@ -1205,6 +1292,7 @@ When true, takes a screenshot of the full scrollable page, instead of the curren
 
 ## screenshot-option-clip
 - `clip` <[Object]>
+  - alias-java: Clip
   - `x` <[float]> x-coordinate of top-left corner of clip area
   - `y` <[float]> y-coordinate of top-left corner of clip area
   - `width` <[float]> width of clipping area
@@ -1384,7 +1472,7 @@ Consider the following DOM structure.
 <button data-testid="directions">Itinéraire</button>
 ```
 
-You can locate the element by it's test id:
+You can locate the element by its test id:
 
 ```js
 await page.getByTestId('directions').click();
@@ -1656,7 +1744,7 @@ Consider the following DOM structure.
 <button>Submit</button>
 ```
 
-You can locate each element by it's implicit role:
+You can locate each element by its implicit role:
 
 ```js
 await expect(page.getByRole('heading', { name: 'Sign up' })).toBeVisible();
@@ -1758,7 +1846,9 @@ await Expect(Page.GetByTitle("Issues count")).toHaveText("25 issues");
 - `type` ?<[string]>
 * langs: js
 
-This option configures a template controlling location of snapshots generated by [`method: PageAssertions.toHaveScreenshot#1`] and [`method: SnapshotAssertions.toMatchSnapshot#1`].
+This option configures a template controlling location of snapshots generated by [`method: PageAssertions.toHaveScreenshot#1`], [`method: LocatorAssertions.toMatchAriaSnapshot#2`] and [`method: SnapshotAssertions.toMatchSnapshot#1`].
+
+You can configure templates for each assertion separately in [`property: TestConfig.expect`].
 
 **Usage**
 
@@ -1767,7 +1857,19 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+
+  // Single template for all assertions
   snapshotPathTemplate: '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
+
+  // Assertion-specific templates
+  expect: {
+    toHaveScreenshot: {
+      pathTemplate: '{testDir}/__screenshots__{/projectName}/{testFilePath}/{arg}{ext}',
+    },
+    toMatchAriaSnapshot: {
+      pathTemplate: '{testDir}/__snapshots__/{testFilePath}/{arg}{ext}',
+    },
+  },
 });
 ```
 
@@ -1798,22 +1900,22 @@ test.describe('suite', () => {
 
 The list of supported tokens:
 
-* `{arg}` - Relative snapshot path **without extension**. These come from the arguments passed to the `toHaveScreenshot()` and `toMatchSnapshot()` calls; if called without arguments, this will be an auto-generated snapshot name.
+* `{arg}` - Relative snapshot path **without extension**. This comes from the arguments passed to `toHaveScreenshot()`, `toMatchAriaSnapshot()` or `toMatchSnapshot()`; if called without arguments, this will be an auto-generated snapshot name.
   * Value: `foo/bar/baz`
-* `{ext}` - snapshot extension (with dots)
+* `{ext}` - Snapshot extension (with the leading dot).
   * Value: `.png`
 * `{platform}` - The value of `process.platform`.
 * `{projectName}` - Project's file-system-sanitized name, if any.
   * Value: `''` (empty string).
-* `{snapshotDir}` - Project's [`property: TestConfig.snapshotDir`].
+* `{snapshotDir}` - Project's [`property: TestProject.snapshotDir`].
   * Value: `/home/playwright/tests` (since `snapshotDir` is not provided in config, it defaults to `testDir`)
-* `{testDir}` - Project's [`property: TestConfig.testDir`].
-  * Value: `/home/playwright/tests` (absolute path is since `testDir` is resolved relative to directory with config)
+* `{testDir}` - Project's [`property: TestProject.testDir`].
+  * Value: `/home/playwright/tests` (absolute path since `testDir` is resolved relative to directory with config)
 * `{testFileDir}` - Directories in relative path from `testDir` to **test file**.
   * Value: `page`
 * `{testFileName}` - Test file name with extension.
   * Value: `page-click.spec.ts`
-* `{testFilePath}` - Relative path from `testDir` to **test file**
+* `{testFilePath}` - Relative path from `testDir` to **test file**.
   * Value: `page/page-click.spec.ts`
 * `{testName}` - File-system-sanitized test title, including parent describes but excluding file name.
   * Value: `suite-test-should-work`
