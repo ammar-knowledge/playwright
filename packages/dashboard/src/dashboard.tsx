@@ -28,6 +28,38 @@ import type { Tab, DashboardChannelEvents } from './dashboardChannel';
 const BUTTONS = ['left', 'middle', 'right'] as const;
 type Mode = 'readonly' | 'interactive' | 'annotate';
 
+async function pickSaveWritable(suggestedName: string, description: string, mime: string, extension: string): Promise<FileSystemWritableFileStream | null> {
+  try {
+    const handle = await (window as any).showSaveFilePicker({
+      suggestedName,
+      types: [{ description, accept: { [mime]: [extension] } }],
+    });
+    return await handle.createWritable();
+  } catch {
+    return null;
+  }
+}
+
+function base64ToBlob(base64: string, mime: string): Blob {
+  return new Blob([(Uint8Array as any).fromBase64(base64)], { type: mime });
+}
+
+function smartUrl(input: string): string {
+  const value = input.trim();
+  if (!value)
+    return value;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) || value.startsWith('about:') || value.startsWith('data:'))
+    return value;
+  const host = value.split(/[/?#]/, 1)[0];
+  const hasDot = host.includes('.');
+  const isLocalhost = /^localhost(:\d+)?$/i.test(host);
+  const hasPort = /:\d+$/.test(host);
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(host);
+  if (hasDot || isLocalhost || hasPort || isIp)
+    return 'https://' + value;
+  return 'https://' + host + '.com' + value.slice(host.length);
+}
+
 export const Dashboard: React.FC = () => {
   const client = React.useContext(DashboardClientContext);
   const [mode, setMode] = React.useState<Mode>('readonly');
@@ -36,25 +68,8 @@ export const Dashboard: React.FC = () => {
   const [frame, setFrame] = React.useState<DashboardChannelEvents['frame']>();
   const [picking, setPicking] = React.useState(false);
   const [recording, setRecording] = React.useState(false);
-  const [screenshotIcon, setScreenshotIcon] = React.useState<'device-camera' | 'check'>('device-camera');
+  const [screenshotIcon, setScreenshotIcon] = React.useState<'device-camera' | 'clippy'>('device-camera');
   const [flashTick, setFlashTick] = React.useState(0);
-
-  const downloadArtifact = React.useCallback(async (id: string) => {
-    const appMode = window.matchMedia('(display-mode: standalone)').matches
-      || (window as any).__dashboardAppModeForTest === true;
-    if (appMode)
-      return await client!.saveAndReveal({ id });
-
-    const a = document.createElement('a');
-    a.href = `/artifact/${encodeURIComponent(id)}`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    try {
-      a.click();
-    } finally {
-      a.remove();
-    }
-  }, [client]);
 
   const displayRef = React.useRef<HTMLImageElement>(null);
   const screenRef = React.useRef<HTMLDivElement>(null);
@@ -259,9 +274,7 @@ export const Dashboard: React.FC = () => {
 
   function onOmniboxKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
-      let value = (e.target as HTMLInputElement).value.trim();
-      if (!/^https?:\/\//i.test(value))
-        value = 'https://' + value;
+      const value = smartUrl((e.target as HTMLInputElement).value);
       setUrl(value);
       client?.navigate({ url: value });
       e.currentTarget.blur();
@@ -315,9 +328,18 @@ export const Dashboard: React.FC = () => {
               if (!client)
                 return;
               if (recording) {
-                const { id } = await client.stopRecording();
+                const writable = await pickSaveWritable(`playwright-recording-${Date.now()}.webm`, 'WebM Video', 'video/webm', '.webm');
+                if (!writable)
+                  return;
                 setRecording(false);
-                await downloadArtifact(id);
+                const { streamId } = await client.stopRecording();
+                while (true) {
+                  const { data, eof } = await client.readStream({ streamId });
+                  if (eof)
+                    break;
+                  await writable.write(base64ToBlob(data, 'video/webm'));
+                }
+                await writable.close();
               } else {
                 await client.startRecording();
                 setRecording(true);
@@ -327,15 +349,19 @@ export const Dashboard: React.FC = () => {
           </ToolbarButton>
           <ToolbarButton
             className='screenshot'
-            title='Take screenshot'
+            title='Save screenshot'
             icon={screenshotIcon}
             disabled={!ready}
             onClick={async () => {
               if (!client)
                 return;
-              const { id } = await client.screenshot();
-              await downloadArtifact(id);
-              setScreenshotIcon('check');
+              const writable = await pickSaveWritable(`playwright-screenshot-${Date.now()}.png`, 'PNG Image', 'image/png', '.png');
+              if (!writable)
+                return;
+              const data = await client.screenshot();
+              await writable.write(base64ToBlob(data, 'image/png'));
+              await writable.close();
+              setScreenshotIcon('clippy');
               setTimeout(() => setScreenshotIcon('device-camera'), 3000);
             }}
           />

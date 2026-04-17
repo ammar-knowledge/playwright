@@ -92,16 +92,22 @@ function isAlive(pid: number): boolean {
   }
 }
 
-test('daemon show: closing page exits the process', async ({ playwright, cli, findFreePort, waitForPort }) => {
-  const cdpPort = await findFreePort();
-  const { exitCode, pid } = await cli('show', { env: { PLAYWRIGHT_PRINT_DASHBOARD_PID_FOR_TEST: '1', PLAYWRIGHT_DASHBOARD_DEBUG_PORT: String(cdpPort) } });
+test('daemon show: closing page exits the process', async ({ playwright, cli }) => {
+  const bindTitle = `--playwright-internal--${crypto.randomUUID()}`;
+  const { exitCode, pid } = await cli('show', { env: { PLAYWRIGHT_PRINT_DASHBOARD_PID_FOR_TEST: '1', PW_DASHBOARD_APP_BIND_TITLE: bindTitle } });
   expect(exitCode).toBe(0);
   expect(pid).toBeDefined();
   expect(isAlive(pid!)).toBe(true);
 
-  await waitForPort(cdpPort);
+  let endpoint = '';
+  await expect(async () => {
+    const { output } = await cli('list', '--all', '--json');
+    const { servers } = JSON.parse(output);
+    expect(servers[0].title).toBe(bindTitle);
+    endpoint = servers[0].endpoint;
+  }).toPass();
 
-  const browser = await playwright.chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+  const browser = await playwright.chromium.connect(endpoint);
   const page = browser.contexts()[0].pages()[0];
   await page.close();
 
@@ -132,23 +138,65 @@ test('should pick locator from browser', async ({ cli, server, openDashboard }) 
   expect(output).toContain(`getByRole('button', { name: 'Submit' })`);
 });
 
-test('screenshot triggers a browser download in browser mode', async ({ cli, server, openDashboard }) => {
+async function installSaveFilePickerMock(page: import('playwright-core').Page): Promise<() => Promise<Buffer>> {
+  let captured: string | undefined;
+  let resolveCaptured: ((b64: string) => void) | undefined;
+  const waitForCapture = new Promise<string>(resolve => {
+    resolveCaptured = resolve;
+  });
+  await page.exposeBinding('__testCaptureBytes', (_, b64: string) => {
+    captured = b64;
+    resolveCaptured!(b64);
+  });
+  await page.addInitScript(() => {
+    (window as any).showSaveFilePicker = async () => ({
+      createWritable: async () => {
+        const chunks: Uint8Array[] = [];
+        return {
+          write: async (chunk: Blob | BufferSource) => {
+            const buf = chunk instanceof Blob
+              ? new Uint8Array(await chunk.arrayBuffer())
+              : new Uint8Array(chunk instanceof ArrayBuffer ? chunk : (chunk as ArrayBufferView).buffer);
+            chunks.push(buf);
+          },
+          close: async () => {
+            const total = chunks.reduce((n, c) => n + c.byteLength, 0);
+            const merged = new Uint8Array(total);
+            let offset = 0;
+            for (const c of chunks) {
+              merged.set(c, offset);
+              offset += c.byteLength;
+            }
+            await (window as any).__testCaptureBytes((merged as any).toBase64());
+          },
+        };
+      },
+    });
+  });
+  return async () => {
+    const b64 = captured ?? await waitForCapture;
+    return Buffer.from(b64, 'base64');
+  };
+}
+
+test('screenshot writes PNG bytes to the chosen file', async ({ cli, server, page, openDashboard }) => {
   await cli('open', server.EMPTY_PAGE);
+  const awaitBytes = await installSaveFilePickerMock(page);
 
   const dashboard = await openDashboard();
   await dashboard.locator('.sidebar-tab').first().click();
   await expect(dashboard.locator('img#display')).toBeVisible();
   await expect(dashboard.locator('.screenshot')).toBeEnabled();
 
-  const [download] = await Promise.all([
-    dashboard.waitForEvent('download'),
-    dashboard.locator('.screenshot').click(),
-  ]);
-  expect(download.suggestedFilename()).toMatch(/^playwright-screenshot-\d+\.png$/);
+  await dashboard.locator('.screenshot').click();
+
+  const bytes = await awaitBytes();
+  expect(bytes.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
 });
 
-test('recording triggers a browser download in browser mode', async ({ cli, server, openDashboard }) => {
+test('stop recording streams WebM bytes to the chosen file', async ({ cli, server, page, openDashboard }) => {
   await cli('open', server.EMPTY_PAGE);
+  const awaitBytes = await installSaveFilePickerMock(page);
 
   const dashboard = await openDashboard();
   await dashboard.locator('.sidebar-tab').first().click();
@@ -158,29 +206,9 @@ test('recording triggers a browser download in browser mode', async ({ cli, serv
   await expect(recordBtn).toBeEnabled();
   await recordBtn.click();
   await expect(dashboard.locator('.recording-label')).toBeVisible();
+  await recordBtn.click();
 
-  const [download] = await Promise.all([
-    dashboard.waitForEvent('download'),
-    recordBtn.click(),
-  ]);
-  expect(download.suggestedFilename()).toMatch(/^playwright-recording-\d+\.webm$/);
-});
-
-test('screenshot lands in the Downloads dir in app mode', async ({ cli, server, openDashboardApp }, testInfo) => {
-  const downloadsDir = testInfo.outputPath('dashboard-downloads');
-  await fs.promises.mkdir(downloadsDir, { recursive: true });
-
-  await cli('open', server.EMPTY_PAGE);
-
-  const dashboard = await openDashboardApp();
-  await dashboard.locator('.sidebar-tab').first().click();
-  await expect(dashboard.locator('img#display')).toBeVisible();
-  await expect(dashboard.locator('.screenshot')).toBeEnabled();
-
-  await dashboard.locator('.screenshot').click();
-
-  await expect.poll(async () => {
-    const entries = await fs.promises.readdir(downloadsDir).catch(() => []);
-    return entries.filter(f => /^playwright-screenshot-\d+\.png$/.test(f));
-  }).toHaveLength(1);
+  const bytes = await awaitBytes();
+  // WebM files start with the EBML magic bytes.
+  expect(bytes.subarray(0, 4)).toEqual(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
 });
