@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-import { test, expect } from './cli-fixtures';
+import fs from 'fs';
+import { electronTest as test, expect } from './electronTest';
 
-test('browser started by MCP is bound to server registry', async ({ startClient, cli, cliEnv, server }) => {
-  const { client } = await startClient({
-    clientName: 'My Agent',
-    env: cliEnv,
-  });
-  await client.callTool({
-    name: 'browser_navigate',
-    arguments: { url: server.HELLO_WORLD },
-  });
+test.use({ screenshot: 'on' });
 
-  const { output } = await cli('list', '--all');
-  expect(output).toContain('My Agent');
+test.afterEach(async ({}, testInfo) => {
+  const screenshots = testInfo.attachments.filter(a => a.name === 'screenshot');
+  expect(screenshots).toHaveLength(1);
+  expect(fs.existsSync(screenshots[0].path!)).toBe(true);
+});
+
+test('should capture screenshot', async ({ page }) => {
+  await page.setContent('<h1>Electron</h1>');
 });
