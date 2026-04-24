@@ -19,8 +19,6 @@ import { createRoot } from 'react-dom/client';
 import { Button, TabItem } from './tabItem';
 import { AuthTokenSection, getOrCreateAuthToken } from './authToken';
 
-import type { TabInfo } from './tabItem';
-
 type Status =
   | { type: 'connecting'; message: string }
   | { type: 'connected'; message: string }
@@ -30,12 +28,15 @@ type Status =
 const SUPPORTED_PROTOCOL_VERSION = 2;
 
 const ConnectApp: React.FC = () => {
-  const [tabs, setTabs] = useState<TabInfo[]>([]);
+  const [tabs, setTabs] = useState<chrome.tabs.Tab[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
-  const [showButtons, setShowButtons] = useState(true);
   const [showTabList, setShowTabList] = useState(true);
   const [clientInfo, setClientInfo] = useState('unknown');
-  const [mcpRelayUrl, setMcpRelayUrl] = useState('');
+
+  const setError = useCallback((message: string) => {
+    setShowTabList(false);
+    setStatus({ type: 'error', message });
+  }, []);
 
   useEffect(() => {
     const runAsync = async () => {
@@ -43,22 +44,20 @@ const ConnectApp: React.FC = () => {
       const relayUrl = params.get('mcpRelayUrl');
 
       if (!relayUrl) {
-        handleReject('Missing mcpRelayUrl parameter in URL.');
+        setError('Missing mcpRelayUrl parameter in URL.');
         return;
       }
 
       try {
         const host = new URL(relayUrl).hostname;
         if (host !== '127.0.0.1' && host !== '[::1]') {
-          handleReject(`Playwright extension only allows loopback connections (127.0.0.1 or [::1]). Received host: ${host}`);
+          setError(`Playwright extension only allows loopback connections (127.0.0.1 or [::1]). Received host: ${host}`);
           return;
         }
       } catch (e) {
-        handleReject(`Invalid mcpRelayUrl parameter in URL: ${relayUrl}. ${e}`);
+        setError(`Invalid mcpRelayUrl parameter in URL: ${relayUrl}. ${e}`);
         return;
       }
-
-      setMcpRelayUrl(relayUrl);
 
       try {
         const client = JSON.parse(params.get('client') || '{}');
@@ -77,7 +76,6 @@ const ConnectApp: React.FC = () => {
       const requestedVersion = isNaN(parsedVersion) ? 1 : parsedVersion;
       if (requestedVersion > SUPPORTED_PROTOCOL_VERSION) {
         const extensionVersion = chrome.runtime.getManifest().version;
-        setShowButtons(false);
         setShowTabList(false);
         setStatus({
           type: 'error',
@@ -87,20 +85,25 @@ const ConnectApp: React.FC = () => {
         });
         return;
       }
+      // The background decides per protocolVersion: v1 opens the relay WS
+      // immediately (the daemon expects a prompt connection); v2 just records
+      // the descriptor and defers the WS until the user clicks Allow.
+      const response = await chrome.runtime.sendMessage({ type: 'connectionRequested', mcpRelayUrl: relayUrl, protocolVersion: requestedVersion });
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
 
       const expectedToken = getOrCreateAuthToken();
       const token = params.get('token');
       if (token === expectedToken) {
-        await connectToMCPRelay(relayUrl, requestedVersion);
         await handleConnectToTab();
         return;
       }
       if (token) {
-        handleReject('Invalid token provided.');
+        setError('Invalid token provided.');
         return;
       }
-
-      await connectToMCPRelay(relayUrl, requestedVersion);
 
       // If this is a browser_navigate command, hide the tab list and show simple allow/reject
       if (params.get('newTab') === 'true')
@@ -109,22 +112,13 @@ const ConnectApp: React.FC = () => {
         await loadTabs();
     };
     void runAsync();
+    // Ping the background every 20s so the MV3 service worker (which owns the
+    // relay WebSocket) stays above its 30s idle timeout while the user decides.
+    const keepalive = setInterval(() => {
+      chrome.runtime.sendMessage({ type: 'keepalive' }).catch(() => {});
+    }, 20_000);
+    return () => clearInterval(keepalive);
   }, []);
-
-  const handleReject = useCallback((message: string) => {
-    setShowButtons(false);
-    setShowTabList(false);
-    setStatus({ type: 'error', message });
-    // Ask the background to close the pending MCP relay connection so the
-    // client daemon sees a disconnect and exits.
-    chrome.runtime.sendMessage({ type: 'rejectConnection' }).catch(() => {});
-  }, []);
-
-  const connectToMCPRelay = useCallback(async (mcpRelayUrl: string, protocolVersion: number) => {
-    const response = await chrome.runtime.sendMessage({ type: 'connectToMCPRelay', mcpRelayUrl, protocolVersion });
-    if (!response.success)
-      handleReject(response.error);
-  }, [handleReject]);
 
   const loadTabs = useCallback(async () => {
     const response = await chrome.runtime.sendMessage({ type: 'getTabs' });
@@ -134,15 +128,13 @@ const ConnectApp: React.FC = () => {
       setStatus({ type: 'error', message: 'Failed to load tabs: ' + response.error });
   }, []);
 
-  const handleConnectToTab = useCallback(async (tab?: TabInfo) => {
-    setShowButtons(false);
+  const handleConnectToTab = useCallback(async (tab?: chrome.tabs.Tab) => {
     setShowTabList(false);
 
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'connectToTab',
-        tabId: tab?.id,
-        windowId: tab?.windowId,
+        tab,
         clientName: clientInfo,
       });
 
@@ -160,12 +152,12 @@ const ConnectApp: React.FC = () => {
         message: `"${clientInfo}" failed to connect: ${e}`
       });
     }
-  }, [clientInfo, mcpRelayUrl]);
+  }, [clientInfo]);
 
   useEffect(() => {
     const listener = (message: any) => {
       if (message.type === 'pendingConnectionClosed') {
-        handleReject('Pending client connection closed.');
+        setError('Pending client connection closed.');
         document.title = 'Playwright Extension';
       }
     };
@@ -173,7 +165,7 @@ const ConnectApp: React.FC = () => {
     return () => {
       chrome.runtime.onMessage.removeListener(listener);
     };
-  }, [handleReject]);
+  }, [setError]);
 
   return (
     <div className='app-container'>
@@ -181,16 +173,6 @@ const ConnectApp: React.FC = () => {
         {status && (
           <div className='status-container'>
             <StatusBanner status={status} />
-            {showButtons && (
-              <div className='button-container'>
-                <Button variant='primary' onClick={() => handleConnectToTab()}>
-                  Allow
-                </Button>
-                <Button variant='reject' onClick={() => handleReject('Connection rejected. This tab can be closed.')}>
-                  Reject
-                </Button>
-              </div>
-            )}
           </div>
         )}
 

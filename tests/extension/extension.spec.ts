@@ -30,7 +30,7 @@ test(`navigate with extension`, async ({ startExtensionClient, server }) => {
   });
 
   const selectorPage = await confirmationPagePromise;
-  await selectorPage.getByRole('button', { name: 'Allow', exact: true }).click();
+  await clickAllowAndSelect(selectorPage, 'Welcome');
 
   expect(await navigateResponse).toHaveResponse({
     snapshot: expect.stringContaining(`- generic [active] [ref=e1]: Hello, world!`),
@@ -104,7 +104,7 @@ test(`browser_run_code can evaluate in a web worker`, async ({ startExtensionCli
   });
 
   const selectorPage = await confirmationPagePromise;
-  await selectorPage.getByRole('button', { name: 'Allow', exact: true }).click();
+  await clickAllowAndSelect(selectorPage, 'Welcome');
 
   await navigateResponse;
 
@@ -204,7 +204,7 @@ testWithOldExtensionVersion(`works with old extension version`, async ({ startEx
   });
 
   const selectorPage = await confirmationPagePromise;
-  await selectorPage.getByRole('button', { name: 'Allow', exact: true }).click();
+  await clickAllowAndSelect(selectorPage, 'Welcome');
 
   expect(await navigateResponse).toHaveResponse({
     snapshot: expect.stringContaining(`- generic [active] [ref=e1]: Hello, world!`),
@@ -255,6 +255,25 @@ test(`custom executablePath`, async ({ startClient, server }) => {
   }).toPass();
 });
 
+test(`fails when extension is missing in custom userDataDir`, async ({ startClient, server }) => {
+  const userDataDir = test.info().outputPath('empty-profile');
+
+  const { client } = await startClient({
+    args: [`--extension`],
+    config: {
+      browser: { userDataDir },
+    },
+  });
+
+  expect(await client.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  })).toHaveResponse({
+    error: expect.stringContaining(`Playwright Extension not found in "${userDataDir}"`),
+    isError: true,
+  });
+});
+
 test(`bypass connection dialog with token`, async ({ browserWithExtension, startClient, server }) => {
   const browserContext = await browserWithExtension.launch();
 
@@ -285,7 +304,10 @@ test(`bypass connection dialog with token`, async ({ browserWithExtension, start
   });
 });
 
-test(`pending connection closed when client disconnects`, async ({ startExtensionClient, server }) => {
+test(`pending connection closed when client disconnects`, async ({ startExtensionClient, server, protocolVersion }) => {
+  // v2 does not open a WS to the relay before the user clicks Allow, so there
+  // is no pending connection to tear down when the client dies pre-Allow.
+  test.skip(protocolVersion === 2, 'v2 defers the relay connection until Allow');
   const { browserContext, client } = await startExtensionClient();
 
   const confirmationPagePromise = browserContext.waitForEvent('page', page => {
