@@ -543,6 +543,7 @@ const cookieList = declareCommand({
   name: 'cookie-list',
   description: 'List all cookies (optionally filtered by domain/path)',
   category: 'storage',
+  raw: true,
   args: z.object({}),
   options: z.object({
     domain: z.string().optional().describe('Filter cookies by domain'),
@@ -556,6 +557,7 @@ const cookieGet = declareCommand({
   name: 'cookie-get',
   description: 'Get a specific cookie by name',
   category: 'storage',
+  raw: true,
   args: z.object({
     name: z.string().describe('Cookie name'),
   }),
@@ -609,6 +611,7 @@ const localStorageList = declareCommand({
   name: 'localstorage-list',
   description: 'List all localStorage key-value pairs',
   category: 'storage',
+  raw: true,
   args: z.object({}),
   toolName: 'browser_localstorage_list',
   toolParams: () => ({}),
@@ -618,6 +621,7 @@ const localStorageGet = declareCommand({
   name: 'localstorage-get',
   description: 'Get a localStorage item by key',
   category: 'storage',
+  raw: true,
   args: z.object({
     key: z.string().describe('Key to get'),
   }),
@@ -663,6 +667,7 @@ const sessionStorageList = declareCommand({
   name: 'sessionstorage-list',
   description: 'List all sessionStorage key-value pairs',
   category: 'storage',
+  raw: true,
   args: z.object({}),
   toolName: 'browser_sessionstorage_list',
   toolParams: () => ({}),
@@ -672,6 +677,7 @@ const sessionStorageGet = declareCommand({
   name: 'sessionstorage-get',
   description: 'Get a sessionStorage item by key',
   category: 'storage',
+  raw: true,
   args: z.object({
     key: z.string().describe('Key to get'),
   }),
@@ -742,6 +748,7 @@ const routeList = declareCommand({
   name: 'route-list',
   description: 'List all active network routes',
   category: 'network',
+  raw: true,
   args: z.object({}),
   toolName: 'browser_route_list',
   toolParams: () => ({}),
@@ -828,6 +835,8 @@ const networkRequests = declareCommand({
   toolParams: ({ static: s, filter, clear }) => clear ? ({}) : ({ static: s, filter }),
 });
 
+const filenameOption = z.string().optional().describe('Filename to save the result to. If not provided, output is returned as text.');
+
 const networkRequest = declareCommand({
   name: 'request',
   description: 'Show full details (headers, body, response) of a single network request by its number from the `requests` command.',
@@ -835,52 +844,71 @@ const networkRequest = declareCommand({
   args: z.object({
     index: numberArg.describe('1-based number of the request as listed by `requests`'),
   }),
+  options: z.object({
+    filename: filenameOption,
+  }),
   toolName: 'browser_network_request',
-  toolParams: ({ index }) => ({ index }),
+  toolParams: ({ index, filename }) => ({ index, filename }),
 });
 
 const networkRequestHeaders = declareCommand({
   name: 'request-headers',
   description: 'Print only the request headers for a single network request by its number from the `requests` command.',
   category: 'network',
+  raw: true,
   args: z.object({
     index: numberArg.describe('1-based number of the request as listed by `requests`'),
   }),
+  options: z.object({
+    filename: filenameOption,
+  }),
   toolName: 'browser_network_request',
-  toolParams: ({ index }) => ({ index, part: 'request-headers' }),
+  toolParams: ({ index, filename }) => ({ index, part: 'request-headers', filename }),
 });
 
 const networkRequestBody = declareCommand({
   name: 'request-body',
   description: 'Print only the request body for a single network request by its number from the `requests` command.',
   category: 'network',
+  raw: true,
   args: z.object({
     index: numberArg.describe('1-based number of the request as listed by `requests`'),
   }),
+  options: z.object({
+    filename: filenameOption,
+  }),
   toolName: 'browser_network_request',
-  toolParams: ({ index }) => ({ index, part: 'request-body' }),
+  toolParams: ({ index, filename }) => ({ index, part: 'request-body', filename }),
 });
 
 const networkResponseHeaders = declareCommand({
   name: 'response-headers',
   description: 'Print only the response headers for a single network request by its number from the `requests` command.',
   category: 'network',
+  raw: true,
   args: z.object({
     index: numberArg.describe('1-based number of the request as listed by `requests`'),
   }),
+  options: z.object({
+    filename: filenameOption,
+  }),
   toolName: 'browser_network_request',
-  toolParams: ({ index }) => ({ index, part: 'response-headers' }),
+  toolParams: ({ index, filename }) => ({ index, part: 'response-headers', filename }),
 });
 
 const networkResponseBody = declareCommand({
   name: 'response-body',
   description: 'Print the response body for a single network request by its number from the `requests` command. Textual bodies are inlined; binary bodies are saved to a file and the path is printed.',
   category: 'network',
+  raw: true,
   args: z.object({
     index: numberArg.describe('1-based number of the request as listed by `requests`'),
   }),
+  options: z.object({
+    filename: filenameOption,
+  }),
   toolName: 'browser_network_request',
-  toolParams: ({ index }) => ({ index, part: 'response-body' }),
+  toolParams: ({ index, filename }) => ({ index, part: 'response-body', filename }),
 });
 
 const tracingStart = declareCommand({
