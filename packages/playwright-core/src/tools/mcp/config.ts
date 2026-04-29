@@ -182,6 +182,12 @@ export async function resolveCLIConfigForCLI(daemonProfilesDir: string, sessionN
   return { ...result, browser, configFile, skillMode: true };
 }
 
+export function resolveChannelForExtension(cliOptions: CLIOptions): string {
+  const browser = cliOptions.browser ?? envToString(process.env.PLAYWRIGHT_MCP_BROWSER);
+  const { channel } = resolveBrowserParam(browser);
+  return channel ?? 'chrome';
+}
+
 async function validateBrowserConfig(browser: MergedConfig['browser']): Promise<FullConfig['browser']> {
   let browserName = browser.browserName;
   if (!browserName) {
@@ -229,10 +235,8 @@ async function validateBrowserConfig(browser: MergedConfig['browser']): Promise<
   return { ...browser, browserName };
 }
 
-function configFromCLIOptions(cliOptions: CLIOptions): Config & { configFile?: string } {
-  let browserName: 'chromium' | 'firefox' | 'webkit' | undefined;
-  let channel: string | undefined;
-  switch (cliOptions.browser) {
+function resolveBrowserParam(browserOption: string | undefined): { browserName?: 'chromium' | 'firefox' | 'webkit', channel?: string } {
+  switch (browserOption) {
     case 'chrome':
     case 'chrome-beta':
     case 'chrome-canary':
@@ -241,21 +245,20 @@ function configFromCLIOptions(cliOptions: CLIOptions): Config & { configFile?: s
     case 'msedge-beta':
     case 'msedge-canary':
     case 'msedge-dev':
-      browserName = 'chromium';
-      channel = cliOptions.browser;
-      break;
+      return { browserName: 'chromium', channel: browserOption };
     case 'chromium':
-      // Never use old headless.
-      browserName = 'chromium';
-      channel = 'chrome-for-testing';
-      break;
+      return { browserName: 'chromium', channel: 'chrome-for-testing' };
     case 'firefox':
-      browserName = 'firefox';
-      break;
+      return { browserName: 'firefox' };
     case 'webkit':
-      browserName = 'webkit';
-      break;
+      return { browserName: 'webkit' };
+    default:
+      return {};
   }
+}
+
+function configFromCLIOptions(cliOptions: CLIOptions): Config & { configFile?: string } {
+  const { browserName, channel } = resolveBrowserParam(cliOptions.browser);
 
   // Launch options
   const launchOptions: playwrightTypes.LaunchOptions = {
