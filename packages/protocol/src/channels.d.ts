@@ -317,6 +317,7 @@ export type RecordHarOptions = {
   urlRegexFlags?: string,
   harPath?: string,
   resourcesDir?: string,
+  live?: boolean,
 };
 
 export type FormField = {
@@ -2810,7 +2811,6 @@ export interface FrameChannel extends FrameEventTarget, Channel {
   evalOnSelectorAll(params: FrameEvalOnSelectorAllParams, progress?: Progress): Promise<FrameEvalOnSelectorAllResult>;
   addScriptTag(params: FrameAddScriptTagParams, progress?: Progress): Promise<FrameAddScriptTagResult>;
   addStyleTag(params: FrameAddStyleTagParams, progress?: Progress): Promise<FrameAddStyleTagResult>;
-  ariaRef(params: FrameAriaRefParams, progress?: Progress): Promise<FrameAriaRefResult>;
   ariaSnapshot(params: FrameAriaSnapshotParams, progress?: Progress): Promise<FrameAriaSnapshotResult>;
   blur(params: FrameBlurParams, progress?: Progress): Promise<FrameBlurResult>;
   check(params: FrameCheckParams, progress?: Progress): Promise<FrameCheckResult>;
@@ -2918,16 +2918,6 @@ export type FrameAddStyleTagOptions = {
 };
 export type FrameAddStyleTagResult = {
   element: ElementHandleChannel,
-};
-export type FrameAriaRefParams = {
-  selector: string,
-  timeout: number,
-};
-export type FrameAriaRefOptions = {
-
-};
-export type FrameAriaRefResult = {
-  ref?: string,
 };
 export type FrameAriaSnapshotParams = {
   mode?: 'ai' | 'default',

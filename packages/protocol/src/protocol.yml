@@ -326,6 +326,7 @@ RecordHarOptions:
     urlRegexFlags: string?
     harPath: string?
     resourcesDir: string?
+    live: boolean?
 
 
 FormField:
@@ -2310,14 +2311,6 @@ Frame:
       flags:
         snapshot: true
         pause: true
-
-    ariaRef:
-      internal: true
-      parameters:
-        selector: string
-        timeout: float
-      returns:
-        ref: string?
 
     ariaSnapshot:
       title: Aria snapshot

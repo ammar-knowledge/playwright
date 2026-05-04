@@ -2052,7 +2052,10 @@ export interface Page {
    */
   ariaSnapshot(options?: {
     /**
-     * When `true`, appends each element's bounding box as `[box=x,y,width,height]` to the snapshot. Defaults to `false`.
+     * When `true`, appends each element's bounding box as `[box=x,y,width,height]` to the snapshot. Coordinates are
+     * relative to the viewport, in CSS pixels, as returned by
+     * [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+     * Defaults to `false`.
      */
     boxes?: boolean;
 
@@ -12985,24 +12988,6 @@ export interface Locator {
   and(locator: Locator): Locator;
 
   /**
-   * Returns the aria ref (for example `e1`, `e2`) assigned to this element by the most recent aria snapshot, or `null`
-   * if no ref has been assigned yet. Call
-   * [locator.ariaSnapshot([options])](https://playwright.dev/docs/api/class-locator#locator-aria-snapshot) or
-   * [page.ariaSnapshot([options])](https://playwright.dev/docs/api/class-page#page-aria-snapshot) before this method to
-   * ensure a ref is available.
-   * @param options
-   */
-  ariaRef(options?: {
-    /**
-     * Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout`
-     * option in the config, or by using the
-     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
-     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout) methods.
-     */
-    timeout?: number;
-  }): Promise<null|string>;
-
-  /**
    * Captures the aria snapshot of the given element. Read more about [aria snapshots](https://playwright.dev/docs/aria-snapshots) and
    * [expect(locator).toMatchAriaSnapshot(expected[, options])](https://playwright.dev/docs/api/class-locatorassertions#locator-assertions-to-match-aria-snapshot)
    * for the corresponding assertion.
@@ -13050,7 +13035,10 @@ export interface Locator {
    */
   ariaSnapshot(options?: {
     /**
-     * When `true`, appends each element's bounding box as `[box=x,y,width,height]` to the snapshot. Defaults to `false`.
+     * When `true`, appends each element's bounding box as `[box=x,y,width,height]` to the snapshot. Coordinates are
+     * relative to the viewport, in CSS pixels, as returned by
+     * [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+     * Defaults to `false`.
      */
     boxes?: boolean;
 
@@ -14238,8 +14226,7 @@ export interface Locator {
   }): Locator;
 
   /**
-   * Hide element highlight added with Highlight the corresponding element(s) on the screen. Useful for debugging, don't
-   * commit the code that uses
+   * Hides the element highlight previously added by
    * [locator.highlight([options])](https://playwright.dev/docs/api/class-locator#locator-highlight).
    */
   hideHighlight(): Promise<void>;
@@ -16002,26 +15989,6 @@ export interface BrowserType<Unused = {}> {
    */
   launchServer(options?: {
     /**
-     * This option allows the connecting client to expose its local network to the browser via
-     * [`exposeNetwork`](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-option-expose-network).
-     * The value is the maximum set of network rules the server will accept; the client must request a subset of these
-     * rules through `exposeNetwork`, otherwise its requests will be served directly from the server. Consists of a list
-     * of rules separated by comma.
-     *
-     * Available rules:
-     * 1. Hostname pattern, for example: `example.com`, `*.org:99`, `x.*.y.com`, `*foo.org`.
-     * 1. IP literal, for example: `127.0.0.1`, `0.0.0.0:99`, `[::1]`, `[0:0::1]:99`.
-     * 1. `<loopback>` that matches local loopback interfaces: `localhost`, `*.localhost`, `127.0.0.1`, `[::1]`.
-     *
-     * Some common examples:
-     * 1. `"*"` to allow exposing any network.
-     * 1. `"<loopback>"` to allow exposing localhost network.
-     * 1. `"*.test.internal-domain,*.staging.internal-domain,<loopback>"` to allow exposing test/staging deployments
-     *    and localhost.
-     */
-    allowClientNetwork?: string;
-
-    /**
      * **NOTE** Use custom browser args at your own risk, as some of them may break Playwright functionality.
      *
      * Additional arguments to pass to the browser instance. The list of Chromium flags can be found
@@ -17076,8 +17043,19 @@ export interface ElectronApplication {
 
   /**
    * Closes Electron application.
+   * @param options
    */
-  close(): Promise<void>;
+  close(options?: {
+    /**
+     * Maximum time in milliseconds to wait for the Electron application to gracefully close before forcefully terminating
+     * it. By default,
+     * [electronApplication.close([options])](https://playwright.dev/docs/api/class-electronapplication#electron-application-close)
+     * waits indefinitely for the application to exit, which can hang if the app has `before-quit` handlers that prevent
+     * shutdown, leaky IPC handlers, or child processes that keep it alive. When specified, the underlying process is
+     * force-killed (SIGKILL on POSIX, `taskkill /T /F` on Windows) if it does not exit within the given timeout.
+     */
+    timeout?: number;
+  }): Promise<void>;
 
   /**
    * This method returns browser context that can be used for setting up context-wide routing, etc.
@@ -19716,10 +19694,20 @@ export interface ConsoleMessage {
     /**
      * 0-based line number in the resource.
      */
-    lineNumber: number;
+    line: number;
 
     /**
      * 0-based column number in the resource.
+     */
+    column: number;
+
+    /**
+     * 0-based line number in the resource. Deprecated, use `line` instead.
+     */
+    lineNumber: number;
+
+    /**
+     * 0-based column number in the resource. Deprecated, use `column` instead.
      */
     columnNumber: number;
   };
@@ -22183,6 +22171,14 @@ export interface Tracing {
     content?: "omit"|"embed"|"attach";
 
     /**
+     * When set to `true`, the HAR file is rewritten on disk every time a network request finishes, so that the file can
+     * be read while recording. The file is finalized on
+     * [tracing.stopHar()](https://playwright.dev/docs/api/class-tracing#tracing-stop-har). Not compatible with a `.zip`
+     * HAR file or with remote connections.
+     */
+    live?: boolean;
+
+    /**
      * When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page,
      * cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
      */
@@ -22919,10 +22915,15 @@ export interface ConnectOverCDPOptions {
   isLocal?: boolean;
 
   /**
-   * When true, Playwright will not send default overrides to the browser on the default context. This includes
-   * `Browser.setDownloadBehavior`, `Emulation.setFocusEmulationEnabled`, and `Emulation.setEmulatedMedia`. Useful when
-   * attaching to a user's daily-driver browser where these overrides would interfere with existing browser state. New
-   * contexts created via
+   * When true, Playwright will not apply its default overrides to the existing default browser context. Specifically,
+   * [`acceptDownloads`](https://playwright.dev/docs/api/class-browser#browser-new-context-option-accept-downloads) is
+   * left at the browser's setting, focus emulation is not enabled, and media emulation options (such as
+   * [`colorScheme`](https://playwright.dev/docs/api/class-browser#browser-new-context-option-color-scheme),
+   * [`reducedMotion`](https://playwright.dev/docs/api/class-browser#browser-new-context-option-reduced-motion),
+   * [`forcedColors`](https://playwright.dev/docs/api/class-browser#browser-new-context-option-forced-colors), and
+   * [`contrast`](https://playwright.dev/docs/api/class-browser#browser-new-context-option-contrast)) are not applied.
+   * Useful when attaching to a user's daily-driver browser where these overrides would interfere with existing browser
+   * state. New contexts created via
    * [browser.newContext([options])](https://playwright.dev/docs/api/class-browser#browser-new-context) are not
    * affected. Defaults to `false`.
    */

@@ -115,6 +115,7 @@ export class Tab extends EventEmitter<TabEventsInterface> {
       eventsHelper.addEventListener(p, 'response', response => this._handleResponse(response)),
       eventsHelper.addEventListener(p, 'requestfailed', request => this._handleRequestFailed(request)),
       eventsHelper.addEventListener(p, 'close', () => this._onClose()),
+      eventsHelper.addEventListener(p, 'crash', () => this._onClose()),
       eventsHelper.addEventListener(p, 'filechooser', chooser => {
         this.setModalState({
           type: 'fileChooser',
@@ -444,7 +445,7 @@ export class Tab extends EventEmitter<TabEventsInterface> {
   async targetLocators(params: { element?: string, target: string }[]): Promise<{ locator: playwright.Locator, resolved: string }[]> {
     await this._initializedPromise;
     return Promise.all(params.map(async param => {
-      if (!param.target.match(/(f\d+)?(e\d+)/)) {
+      if (!param.target.match(/^(f\d+)?e\d+$/)) {
         const selector = locatorOrSelectorAsSelector('javascript', param.target, this.context.config.testIdAttribute || 'data-testid');
         const handle = await this.page.$(selector);
         if (!handle)
