@@ -34,6 +34,11 @@ type SerializedFSOperation = {
   op: 'zip', entries: NameValue[], zipFileName: string,
 };
 
+// Per-file pending appendFile chunks are flushed once they accumulate to this
+// size, and the merge in _appendOperation stops merging past it. Bounding
+// merged content keeps any single op below V8's ~512MB max string length.
+const APPEND_CHUNK_SIZE = 64 * 1024;
+
 export class SerializedFS {
   private _buffers = new Map<string, string[]>(); // Should never be accessed from within appendOperation.
   private _error: Error | undefined;
@@ -57,8 +62,12 @@ export class SerializedFS {
   appendFile(file: string, text: string, flush?: boolean) {
     if (!this._buffers.has(file))
       this._buffers.set(file, []);
-    this._buffers.get(file)!.push(text);
-    if (flush)
+    const buffer = this._buffers.get(file)!;
+    buffer.push(text);
+    let size = 0;
+    for (const chunk of buffer)
+      size += chunk.length;
+    if (flush || size >= APPEND_CHUNK_SIZE)
       this._flushFile(file);
   }
 
@@ -96,14 +105,11 @@ export class SerializedFS {
   // This method serializes all writes to the trace.
   private _appendOperation(op: SerializedFSOperation): void {
     const last = this._operations[this._operations.length - 1];
-    if (last?.op === 'appendFile' && op.op === 'appendFile' && last.file === op.file) {
-      // Merge pending appendFile operations for performance.
+    if (last?.op === 'appendFile' && op.op === 'appendFile' && last.file === op.file
+        && last.content.length < APPEND_CHUNK_SIZE) {
+      // Merge pending appendFile operations for performance, but cap merging at
+      // APPEND_CHUNK_SIZE so a single op never grows past V8's max string length.
       last.content += op.content;
-      return;
-    }
-    if (last?.op === 'writeFile' && op.op === 'writeFile' && last.file === op.file && !last.skipIfExists && !op.skipIfExists) {
-      // The latest write supersedes the previous one queued for the same file.
-      last.content = op.content;
       return;
     }
 

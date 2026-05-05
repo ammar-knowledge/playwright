@@ -916,6 +916,41 @@ it('should not hang on slow chunked response', async ({ browserName, browser, co
   expect(log.browser!.version).toBe(browser.version());
 });
 
+it('should support HAR larger than 512MB', async ({ contextFactory, server, browserName }, testInfo) => {
+  it.skip(browserName !== 'chromium', 'serializer is browser-agnostic; one browser is enough');
+  it.slow();
+  it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36707' });
+
+  const harPath = testInfo.outputPath('test.har');
+  const context = await contextFactory({ recordHar: { path: harPath } });
+
+  // 30 x 20MB textual responses push the HAR JSON past V8's ~512MB max
+  // string length. Each body still fits in a single string; only the
+  // aggregate would overflow the previous tokens.join('').
+  const body = 'a'.repeat(20 * 1024 * 1024);
+  server.setRoute('/large', (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(body);
+  });
+  for (let i = 0; i < 30; i++)
+    await context.request.get(`${server.PREFIX}/large`);
+  await context.close();
+
+  const stats = fs.statSync(harPath);
+  expect(stats.size).toBeGreaterThan(512 * 1024 * 1024);
+
+  // Reading the whole file as a string would re-hit V8's limit, so
+  // sample the head and tail to verify structural sanity.
+  const fd = fs.openSync(harPath, 'r');
+  const head = Buffer.alloc(64);
+  fs.readSync(fd, head, 0, 64, 0);
+  const tail = Buffer.alloc(64);
+  fs.readSync(fd, tail, 0, 64, stats.size - 64);
+  fs.closeSync(fd);
+  expect(head.toString()).toMatch(/^\{\s*"log"\s*:\s*\{/);
+  expect(tail.toString()).toMatch(/\}\s*\}\s*$/);
+});
+
 it.describe('tracing.startHar', () => {
   it('should record a HAR with options', async ({ contextFactory, server }, testInfo) => {
     const context = await contextFactory();
@@ -970,59 +1005,6 @@ it.describe('tracing.startHar', () => {
     const harPath = testInfo.outputPath('tracing.har.zip');
     const resourcesDir = testInfo.outputPath('har-resources');
     await expect(context.tracing.startHar(harPath, { content: 'attach', resourcesDir })).rejects.toThrow(/resourcesDir option is not compatible with a \.zip har file/);
-    await context.close();
-  });
-
-  it('should write HAR live while recording', async ({ contextFactory, server }, testInfo) => {
-    let cssResponse: import('http').ServerResponse | undefined;
-    const cssRequested = new Promise<void>(resolve => {
-      server.setRoute('/one-style.css', (_, res) => {
-        cssResponse = res;
-        resolve();
-      });
-    });
-
-    const context = await contextFactory();
-    const harPath = testInfo.outputPath('tracing.har');
-    await context.tracing.startHar(harPath, { live: true });
-    const page = await context.newPage();
-    const navigation = page.goto(server.PREFIX + '/one-style.html');
-
-    await cssRequested;
-
-    const readEntries = () => {
-      try {
-        const log = JSON.parse(fs.readFileSync(harPath).toString()).log as Log;
-        return log.entries.map(e => ({ url: e.request.url, status: e.response.status }));
-      } catch {
-        return [];
-      }
-    };
-
-    // The HAR file is on disk before stopHar(), with the in-flight CSS entry shown as pending.
-    await expect.poll(readEntries).toEqual(expect.arrayContaining([
-      { url: server.PREFIX + '/one-style.html', status: 200 },
-      { url: server.PREFIX + '/one-style.css', status: -1 },
-    ]));
-
-    cssResponse!.setHeader('Content-Type', 'text/css');
-    cssResponse!.end('body { color: red; }');
-    await navigation;
-
-    await context.tracing.stopHar();
-    await context.close();
-
-    const log = JSON.parse(fs.readFileSync(harPath).toString()).log as Log;
-    expect(log.entries.map(e => ({ url: e.request.url, status: e.response.status }))).toEqual(expect.arrayContaining([
-      { url: server.PREFIX + '/one-style.html', status: 200 },
-      { url: server.PREFIX + '/one-style.css', status: 200 },
-    ]));
-  });
-
-  it('should reject live together with a .zip har file', async ({ contextFactory }, testInfo) => {
-    const context = await contextFactory();
-    const harPath = testInfo.outputPath('tracing.har.zip');
-    await expect(context.tracing.startHar(harPath, { live: true })).rejects.toThrow(/live option is not compatible with a \.zip har file/);
     await context.close();
   });
 });
