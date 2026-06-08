@@ -19419,32 +19419,76 @@ export interface Coverage {
 }
 
 /**
- * `Credentials` provides a virtual WebAuthn authenticator scoped to a
- * [BrowserContext](https://playwright.dev/docs/api/class-browsercontext). It lets tests seed credentials, intercept
- * `navigator.credentials.create()` / `navigator.credentials.get()` calls in pages, and complete WebAuthn ceremonies
- * without a real authenticator.
+ * `Credentials` is a virtual WebAuthn authenticator scoped to a
+ * [BrowserContext](https://playwright.dev/docs/api/class-browsercontext). It lets tests register passkeys and answer
+ * `navigator.credentials.create()` / `navigator.credentials.get()` ceremonies in the page, without a real
+ * authenticator or hardware security key.
  *
- * Implemented in userland via an injected script, so it works across Chromium, Firefox and WebKit.
+ * There are two common ways to use it:
  *
- * **Usage**
+ * **Usage: seed a known credential**
  *
  * ```js
  * const context = await browser.newContext();
+ *
+ * // A passkey your backend already provisioned for a test user.
+ * await context.credentials.create({
+ *   rpId: 'example.com',
+ *   id: knownCredentialId, // base64url
+ *   userHandle: knownUserHandle, // base64url
+ *   privateKey: knownPrivateKey, // base64url PKCS#8 (DER)
+ *   publicKey: knownPublicKey, // base64url SPKI (DER)
+ * });
  * await context.credentials.install();
- * await context.credentials.create({ rpId: 'example.com' });
+ *
  * const page = await context.newPage();
  * await page.goto('https://example.com/login');
- * // Page's navigator.credentials.get() will be answered using the seeded credential.
+ * // The page's navigator.credentials.get() is answered with the seeded passkey.
  * ```
  *
+ * **Usage: capture a passkey, then reuse it**
+ *
+ * ```js
+ * // setup test: let the app register a passkey, then save it.
+ * const context = await browser.newContext();
+ * await context.credentials.install();
+ *
+ * const page = await context.newPage();
+ * await page.goto('https://example.com/register');
+ * await page.getByRole('button', { name: 'Create a passkey' }).click();
+ *
+ * // Read back the passkey the page registered — it includes the private key.
+ * const [credential] = await context.credentials.get({ rpId: 'example.com' });
+ * fs.writeFileSync('playwright/.auth/passkey.json', JSON.stringify(credential));
+ * ```
+ *
+ * ```js
+ * // later test: seed the captured passkey so the app starts already enrolled.
+ * const credential = JSON.parse(fs.readFileSync('playwright/.auth/passkey.json', 'utf8'));
+ * const context = await browser.newContext();
+ * await context.credentials.create(credential);
+ * await context.credentials.install();
+ *
+ * const page = await context.newPage();
+ * await page.goto('https://example.com/login');
+ * // navigator.credentials.get() resolves the captured passkey — already signed in.
+ * ```
+ *
+ * **Defaults**
  */
 export interface Credentials {
   /**
-   * Seeds a virtual WebAuthn credential. With only `rpId`, generates a fresh ECDSA P-256 keypair, credential id and
-   * user handle. To import a pre-registered credential (e.g. authenticating as an existing test user the server already
-   * knows about), supply all four of `id`, `userHandle`, `privateKey` and `publicKey` together. Call
-   * [credentials.install()](https://playwright.dev/docs/api/class-credentials#credentials-install) before navigating to
-   * a page that uses WebAuthn.
+   * Seeds a virtual WebAuthn credential and returns it.
+   *
+   * With only `rpId`, generates a fresh **ECDSA P-256** keypair, credential id and user handle. The seeded credential
+   * is discoverable (resident), so the page can resolve it from both username-then-passkey and usernameless passkey
+   * flows. The returned object carries the `privateKey` and `publicKey`, so it can be persisted to disk and re-seeded
+   * in a later test.
+   *
+   * To **import a known credential**, supply all four of `id`, `userHandle`, `privateKey` and `publicKey` together.
+   *
+   * Call [credentials.install()](https://playwright.dev/docs/api/class-credentials#credentials-install) before
+   * navigating to a page that uses WebAuthn.
    * @param options
    */
   create(options: {
@@ -19500,13 +19544,23 @@ export interface Credentials {
   }>;
 
   /**
-   * Removes a previously seeded credential.
+   * Removes a credential from the authenticator by its id. Works for any credential currently held — both those seeded
+   * with [credentials.create(options)](https://playwright.dev/docs/api/class-credentials#credentials-create) and those
+   * the page registered itself by calling `navigator.credentials.create()`.
    * @param id Base64url-encoded credential id.
    */
   delete(id: string): Promise<void>;
 
   /**
-   * Returns seeded credentials, optionally filtered by `rpId` or `id`.
+   * Returns every credential currently held by the authenticator, optionally filtered by `rpId` or `id`. This includes
+   * both credentials seeded with
+   * [credentials.create(options)](https://playwright.dev/docs/api/class-credentials#credentials-create) and credentials
+   * the page registered itself by calling `navigator.credentials.create()`.
+   *
+   * Each returned credential includes its `privateKey` and `publicKey`, so a passkey the app just registered can be
+   * saved and re-seeded into a later test with
+   * [credentials.create(options)](https://playwright.dev/docs/api/class-credentials#credentials-create) — see the
+   * second example in the class overview.
    * @param options
    */
   get(options?: {
@@ -19539,16 +19593,9 @@ export interface Credentials {
    * Required: until `install()` is called, no interception is in place and the page sees the platform's native (or
    * absent) WebAuthn behaviour. Seeding credentials with
    * [credentials.create(options)](https://playwright.dev/docs/api/class-credentials#credentials-create) without
-   * `install()` populates the registry but the page will never see those credentials.
+   * `install()` populates the authenticator, but the page will never see those credentials.
    */
   install(): Promise<void>;
-
-  /**
-   * Toggles whether the virtual authenticator auto-approves user-verification prompts. Useful for simulating a user
-   * denying biometric verification.
-   * @param value `true` to auto-approve user verification (default), `false` to refuse.
-   */
-  setUserVerified(value: boolean): Promise<void>;
 }
 
 /**
