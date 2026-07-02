@@ -22,7 +22,7 @@ import { resolveGlobToRegexPattern, serializeURLMatch, urlMatches } from '@isomo
 import { LongStandingScope, ManualPromise } from '@isomorphic/manualPromise';
 import { MultiMap } from '@isomorphic/multimap';
 import { isString } from '@isomorphic/rtti';
-import { rewriteErrorMessage } from '@isomorphic/stackTrace';
+import { rewriteErrorMessage } from '@utils/stackTrace';
 import { getMimeTypeForPath } from '@isomorphic/mimeType';
 import { currentZone } from '@utils/zones';
 import { Worker } from './worker';
@@ -346,7 +346,7 @@ export class Route extends ChannelOwner<channels.RouteChannel> implements api.Ro
     });
   }
 
-  async fetch(options: FallbackOverrides & { maxRedirects?: number, maxRetries?: number, timeout?: number } = {}): Promise<APIResponse> {
+  async fetch(options: FallbackOverrides & { maxRedirects?: number, maxRetries?: number, timeout?: number, signal?: AbortSignal } = {}): Promise<APIResponse> {
     return await this._wrapApiCall(async () => {
       return await this._context.request._innerFetch({ request: this.request(), data: options.postData, ...options });
     });

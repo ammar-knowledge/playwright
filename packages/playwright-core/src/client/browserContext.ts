@@ -21,7 +21,7 @@ import path from 'path';
 import { headersObjectToArray } from '@isomorphic/headers';
 import { urlMatchesEqual } from '@isomorphic/urlMatch';
 import { isRegExp, isString } from '@isomorphic/rtti';
-import { rewriteErrorMessage } from '@isomorphic/stackTrace';
+import { rewriteErrorMessage } from '@utils/stackTrace';
 import { Browser } from './browser';
 import { CDPSession } from './cdpSession';
 import { ChannelOwner } from './channelOwner';
@@ -51,7 +51,7 @@ import type * as structs from '../../types/structs';
 import type * as api from '../../types/types';
 import type { URLMatch } from '@isomorphic/urlMatch';
 import type * as channels from './channels';
-import type * as actions from '@recorder/actions';
+import type * as actions from '@isomorphic/codegen/actions';
 
 interface RecorderEventSink {
   actionAdded?(page: Page, actionInContext: actions.ActionInContext, code: string): void;
