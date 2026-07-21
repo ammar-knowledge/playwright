@@ -773,6 +773,7 @@ scheme.BrowserContextCookiesResult = tObject({
 });
 scheme.BrowserContextExposeBindingParams = tObject({
   name: tString,
+  noGlobal: tOptional(tBoolean),
 });
 scheme.BrowserContextExposeBindingResult = tObject({
   disposable: tChannel(['Disposable']),
@@ -2992,7 +2993,6 @@ scheme.SerializedValue = tObject({
   }))),
   h: tOptional(tInt),
   fn: tOptional(tString),
-  fn_rv: tOptional(tArray(tType('SerializedValue'))),
   id: tOptional(tInt),
   ref: tOptional(tInt),
 });
