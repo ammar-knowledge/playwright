@@ -4414,6 +4414,14 @@ export interface TestType<TestArgs extends {}, WorkerArgs extends {}> {
      *   test('runs second', async ({ page }) => {});
      *   ```
      *
+     * - Declaring locks for all tests in a scope.
+     *
+     *   ```js
+     *   test.describe.configure({ lock: 'user-settings' });
+     *   test('update user settings', async ({ page }) => {});
+     *   test('reset user settings', async ({ page }) => {});
+     *   ```
+     *
      * - Run multiple describes in parallel, but tests inside each describe in order.
      *
      *   ```js
@@ -4434,7 +4442,7 @@ export interface TestType<TestArgs extends {}, WorkerArgs extends {}> {
      *
      * @param options
      */
-    configure: (options: { mode?: 'default' | 'parallel' | 'serial', retries?: number, timeout?: number }) => void;
+    configure: (options: { mode?: 'default' | 'parallel' | 'serial', retries?: number, timeout?: number, lock?: string | string[] }) => void;
   };
 
   /**
@@ -7584,8 +7592,8 @@ export interface PlaywrightTestOptions {
   ignoreHTTPSErrors: boolean;
   /**
    * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
-   * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
-   * about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
+   * so you don't actually need to set it manually. Defaults to `false`. Learn more about
+   * [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
    *
    * **Usage**
    *
